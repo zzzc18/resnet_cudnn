@@ -118,7 +118,7 @@ int Softmax::ObtainPredictionAccuracy(std::vector<label_t> const &labels,
         idx_output = 0;
         idx_target = 0;
 
-        for (int i = 1; i < LeNet_5::kNumClasses; i++) {
+        for (int i = 1; i < 1000; i++) {
             if (h_output[b * output_size + i] >
                 h_output[b * output_size + idx_output])
                 idx_output = i;
@@ -128,7 +128,7 @@ int Softmax::ObtainPredictionAccuracy(std::vector<label_t> const &labels,
         }
 
         if (idx_output == idx_target) hit_count++;
-        confusion_matrix[idx_output * LeNet_5::kNumClasses + idx_target]++;
+        confusion_matrix[idx_output * 1000 + idx_target]++;
     }
 
     return hit_count;

@@ -18,14 +18,14 @@ int main(int argc, char *argv[]) {
     int batch_size_train = 64;
 
     flt_type learning_rate = 0.01 * sqrt((flt_type)batch_size_train);
-    std::cout << "Lr" << learning_rate << "\n";
+    std::cout << "Lr: " << learning_rate << "\n";
 
     int batch_size_test = 64;
 
     Network net;
     net.AddLayers();
 
-    const int epoch = 2;
+    const int epoch = 10;
     for (int i = 0; i < epoch; i++) {
         net.SetWorkloadType(WorkloadType::training);
         net.SetBatchSize(batch_size_train);

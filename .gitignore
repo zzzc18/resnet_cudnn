@@ -6,3 +6,4 @@ gmon.out
 nohup.out
 *.log
 xcnn_cuda
+__pycache__
