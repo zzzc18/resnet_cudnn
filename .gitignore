@@ -1,0 +1,8 @@
+.ipynb_checkpoints
+.vscode
+ImageNet
+obj
+gmon.out
+nohup.out
+*.log
+xcnn_cuda
