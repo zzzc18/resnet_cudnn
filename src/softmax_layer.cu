@@ -5,11 +5,30 @@
 #include "softmax_layer.h"
 #include "utilities_sc.h"
 
+void CrossEntropyLoss(int batch_size, float *output, float *labelsCPU) {
+    float *losses = (float *)malloc(batch_size * sizeof(float));
+    std::fill_n(losses, batch_size, 0);
+    float loss_sum = 0;
+
+#pragma omp parallel for num_threads(12)
+    for (int n = 0; n < batch_size; n++) {
+        for (int i = 0; i < 1000; i++) {
+            losses[n] -= log(output[i + n * 1000]) * labelsCPU[i + n * 1000];
+        }
+    }
+    for (int n = 0; n < batch_size; n++) {
+        loss_sum += losses[n];
+    }
+    float loss_mean = loss_sum / batch_size;
+    // std::cout << "loss_mean: " << loss_mean << "\n";
+    Log("loss.log", "DEBUG", std::to_string(loss_mean));
+    free(output);
+    free(labelsCPU);
+    free(losses);
+}
+
 void CrossEntropyLoss(BlobPointer<flt_type> &output_,
                       BlobPointer<flt_type> const &labels) {
-    // Debug loss
-    // std::cout << output_.buf_size() << "\n";
-    // std::cout << labels.LengthNchw() << "\n";
     float *output = (float *)malloc(output_.buf_size());
     float *labelsCPU = (float *)malloc(labels.LengthNchw() * sizeof(float));
 
@@ -19,30 +38,21 @@ void CrossEntropyLoss(BlobPointer<flt_type> &output_,
                                cudaMemcpyDeviceToHost));
     output_.ToHost(output, length);
     checkCudaErrors(cudaDeviceSynchronize());
-    float *losses = (float *)malloc(labels.get_n() * sizeof(float));
-    std::fill_n(losses, labels.get_n(), 0);
-    float loss_sum = 0;
+    CrossEntropyLoss(output_.get_n(), output, labelsCPU);
+}
 
-    // #pragma omp parallel for num_threads(12)
-    for (int n = 0; n < labels.get_n(); n++) {
-        for (int i = 0; i < 1000; i++) {
-            losses[n] -= log(output[i + n * 1000]) * labelsCPU[i + n * 1000];
-            if (labelsCPU[i + n * 1000] > 0) {
-            }
-        }
-        // if (n < 3) {
-        //     std::cout << "loss " << n << " " << losses[n] << "\n";
-        // }
+void CrossEntropyLoss(BlobPointer<flt_type> &output_,
+                      std::vector<label_t> labels) {
+    float *output = (float *)malloc(output_.buf_size());
+    float *labelsCPU = (float *)malloc(labels.size() * sizeof(float));
+
+    int length = output_.buf_size() / 4;
+    for (int i = 0; i < labels.size(); i++) {
+        labelsCPU[i] = labels[i];
     }
-    for (int n = 0; n < labels.get_n(); n++) {
-        loss_sum += losses[n];
-    }
-    float loss_mean = loss_sum / labels.get_n();
-    // std::cout << "loss_mean: " << loss_mean << "\n";
-    Log("loss.log", "DEBUG", std::to_string(loss_mean));
-    free(output);
-    free(labelsCPU);
-    free(losses);
+    output_.ToHost(output, length);
+    checkCudaErrors(cudaDeviceSynchronize());
+    CrossEntropyLoss(output_.get_n(), output, labelsCPU);
 }
 
 std::array<int, 4> Softmax::InitFeatureShape(
@@ -105,6 +115,9 @@ void Softmax::Backward(BlobPointer<flt_type> const &labels) {
 
 int Softmax::ObtainPredictionAccuracy(std::vector<label_t> const &labels,
                                       std::vector<int> &confusion_matrix) {
+#ifdef ZDEBUG
+    CrossEntropyLoss(output_, labels);
+#endif
     int batch_size = output_.get_n();
     int output_size = output_.LengthChw();
 

@@ -6,10 +6,10 @@
 
 #include "utilities_sc.h"
 
-using uchar = unsigned char;
-using flt_type = float;
-using label_t = uint32_t;
-using one_image = std::vector<flt_type>;
+// using uchar = unsigned char;
+// using flt_type = float;
+// using label_t = uint32_t;
+// using one_image = std::vector<flt_type>;
 
 namespace LeNet_5 {
 int const kNumClasses = 10;  // 不同的数字个数

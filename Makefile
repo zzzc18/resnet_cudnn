@@ -7,18 +7,18 @@ NVCC = $(shell which nvcc)
 INCLUDES = -I$(CUDA_PATH)/include -Isrc -I/usr/include/opencv4
 #INCLUDES = -I${CUDA_PATH}/samples/common/inc -I$(CUDA_PATH)/include
 # NVCC_FLAGS= --resource-usage -Xcompiler -rdynamic -Xcompiler # -fopenmp #-rdc=true -lnvToolsExt
-NVCC_FLAGS= --gpu-architecture=sm_86 --resource-usage -Xcompiler -rdynamic -Xcompiler # -fopenmp #-rdc=true -lnvToolsExt
+NVCC_FLAGS= --gpu-architecture=sm_86 --resource-usage -Xcompiler -rdynamic -Xcompiler -fopenmp #-rdc=true -lnvToolsExt
 
 
 # Gencode argumentes
-SMS = #80 #70 # 30 35 37 50 52 60 61 70
-$(foreach sm, ${SMS}, $(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+# SMS = #80 #70 # 30 35 37 50 52 60 61 70
+# $(foreach sm, ${SMS}, $(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
 
 # LIBRARIES += -L/usr/local/cuda/lib64 -lcublas -lcudnn  -lcurand #-lgomp -lnvToolsExt
 LIBRARIES += -L$(CUDA_PATH)/lib64 -lcublas -lcudnn  -lcurand #-lgomp -lnvToolsExt
-LIBRARIES += -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs -Xcompiler -fopenmp
+LIBRARIES += -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs
 LIBRARIES += -DZDEBUG
-ALL_CCFLAGS += -m64 -g -O2 -std=c++17 $(NVCC_FLAGS) $(INCLUDES) $(LIBRARIES)
+ALL_CCFLAGS += -m64 -O2 -std=c++17 $(NVCC_FLAGS) $(INCLUDES) $(LIBRARIES)
 
 SRC_DIR = src
 OBJ_DIR = obj

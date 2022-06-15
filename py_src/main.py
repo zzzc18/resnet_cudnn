@@ -32,6 +32,9 @@ class Metric():
     def compute(self):
         return self.metric_collection.compute()
 
+    def reset(self):
+        self.metric_collection.reset()
+
 
 if __name__ == "__main__":
     import warnings
@@ -40,14 +43,14 @@ if __name__ == "__main__":
     val_dataset = ImageNetDataset("../ImageNet", "val", get_transform())
 
     train_dataloader = DataLoader(
-        dataset=train_dataset, batch_size=64, shuffle=True, drop_last=True, num_workers=8)
+        dataset=train_dataset, batch_size=64, shuffle=True, drop_last=True, num_workers=12)
     val_dataloader = DataLoader(
-        dataset=val_dataset, batch_size=64, shuffle=False, drop_last=False, num_workers=8)
+        dataset=val_dataset, batch_size=64, shuffle=False, drop_last=False, num_workers=12)
 
     model = TestModel()
-    # model = torchvision.models.resnet34(pretrained=False)
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.08, momentum=0)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=3E-4)
+    # model = torchvision.models.resnet50(pretrained=False)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=0.08, momentum=0.9)
+    optimizer = torch.optim.Adam(model.parameters(), lr=3E-4)
     loss_func = nn.CrossEntropyLoss()
     model = model.cuda()
     writer = SummaryWriter()
@@ -58,6 +61,7 @@ if __name__ == "__main__":
     step = 0
     for epoch in range(total_epoch):
         print(f"Running at Epoch [{epoch+1}/{total_epoch}]")
+        model.train()
         for img, label in tqdm(train_dataloader):
             step += 1
             img = img.cuda()
@@ -75,7 +79,9 @@ if __name__ == "__main__":
             # print(loss)
 
         print(f"My metric:{metric_method.compute()}")
+        metric_method.reset()
 
+        model.eval()
         for img, label in tqdm(val_dataloader):
             step += 1
             img = img.cuda()
@@ -83,9 +89,9 @@ if __name__ == "__main__":
             output = model(img)
             loss = loss_func(output, label)
             batch_metric = metric_method(output, label)
-            # print(batch_metric)
 
         metric_result = metric_method.compute()
+        metric_method.reset()
         print(f"My metric:{metric_result}")
         writer.add_scalar(
             "val acc", scalar_value=metric_result["Accuracy"].item(), global_step=epoch)

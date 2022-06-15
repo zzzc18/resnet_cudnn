@@ -83,6 +83,7 @@ void Network::Update(flt_type const learning_rate) {
 #endif
 
     flt_type eps = -1.f * learning_rate;
+
     // w = w + eps * dw
     checkCublasErrors(cublasSaxpy(cuda_.cublas(), length_weights_, &eps,
                                   d_grad_weights_, 1, d_weights_, 1));
@@ -130,12 +131,6 @@ void Network::AddLayers() {
     layers_.emplace_back(new Activation("tanh", CUDNN_ACTIVATION_TANH));
     layers_.emplace_back(
         new Pooling("pool", 2, 0, 2, CUDNN_POOLING_MAX));  //[14x14x256]
-
-    layers_.emplace_back(
-        new Conv2D("conv3", 256, 3, 1, 1));  //[14x14x256]->[14x14x256]
-    layers_.emplace_back(new Activation("tanh", CUDNN_ACTIVATION_TANH));
-    layers_.emplace_back(
-        new Pooling("pool", 2, 0, 2, CUDNN_POOLING_MAX));  //[7x7x256]
 
     layers_.emplace_back(
         new Conv2D("conv4", 256, 3, 1, 1));  //[14x14x256]->[14x14x256]
@@ -191,14 +186,14 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
         this->layers_[0]->input_.ToDevice(samples);
         train_labels_ptr.ToDevice(labels);
 
+        this->Forward();
+        this->Backward(train_labels_ptr);
+        this->Update(learning_rate);
+
         for (int i = 0; i < batch_size_train; i++) {
             labels[i * 1000 + datasetPtr->GetLabel(
                                   rand_perm[step * batch_size_train + i])] = 0;
         }
-
-        this->Forward();
-        this->Backward(train_labels_ptr);
-        this->Update(learning_rate);
 
         // fetch next data
         index += batch_size_train;
@@ -210,7 +205,6 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
     }
 
     checkCudaErrors(cudaFree(d_train_labels));
-
     std::cout << "\n";
 }
 

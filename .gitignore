@@ -8,3 +8,5 @@ nohup.out
 xcnn_cuda
 __pycache__
 runs
+mat.txt
+tmp

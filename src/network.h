@@ -40,7 +40,8 @@ class Network {
     void InitWeights();
     void DescriptorsAndWorkspace();
 
-   private:
+    //    private:
+   public:
     void SetCudaContext();
     void Forward();
     void Backward(BlobPointer<flt_type> const &labels);
