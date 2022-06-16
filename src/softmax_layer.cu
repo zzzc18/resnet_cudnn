@@ -10,7 +10,7 @@ void CrossEntropyLoss(int batch_size, float *output, float *labelsCPU) {
     std::fill_n(losses, batch_size, 0);
     float loss_sum = 0;
 
-#pragma omp parallel for num_threads(12)
+#pragma omp parallel for num_threads(14)
     for (int n = 0; n < batch_size; n++) {
         for (int i = 0; i < 1000; i++) {
             losses[n] -= log(output[i + n * 1000]) * labelsCPU[i + n * 1000];
@@ -27,8 +27,8 @@ void CrossEntropyLoss(int batch_size, float *output, float *labelsCPU) {
     free(losses);
 }
 
-void CrossEntropyLoss(BlobPointer<flt_type> &output_,
-                      BlobPointer<flt_type> const &labels) {
+void CrossEntropyLoss(BlobPointer<float> &output_,
+                      BlobPointer<float> const &labels) {
     float *output = (float *)malloc(output_.buf_size());
     float *labelsCPU = (float *)malloc(labels.LengthNchw() * sizeof(float));
 
@@ -41,7 +41,7 @@ void CrossEntropyLoss(BlobPointer<flt_type> &output_,
     CrossEntropyLoss(output_.get_n(), output, labelsCPU);
 }
 
-void CrossEntropyLoss(BlobPointer<flt_type> &output_,
+void CrossEntropyLoss(BlobPointer<float> &output_,
                       std::vector<label_t> labels) {
     float *output = (float *)malloc(output_.buf_size());
     float *labelsCPU = (float *)malloc(labels.size() * sizeof(float));
@@ -89,7 +89,7 @@ void Softmax::Forward() {
     return;
 }
 
-void Softmax::Backward(BlobPointer<flt_type> const &labels) {
+void Softmax::Backward(BlobPointer<float> const &labels) {
 #ifdef ZDEBUG
     CrossEntropyLoss(output_, labels);
 #endif
@@ -105,7 +105,7 @@ void Softmax::Backward(BlobPointer<flt_type> const &labels) {
     // normalize the grad-output by the batch size
     int grad_output_size = labels.LengthNchw();
 
-    flt_type scale = 1.f / input_.get_n();
+    float scale = 1.f / input_.get_n();
 
     checkCublasErrors(cublasSscal(cuda_->cublas(), grad_output_size, &scale,
                                   grad_input_.CudaPtr(), 1));
@@ -121,7 +121,7 @@ int Softmax::ObtainPredictionAccuracy(std::vector<label_t> const &labels,
     int batch_size = output_.get_n();
     int output_size = output_.LengthChw();
 
-    std::vector<flt_type> h_output(batch_size * output_size, 0);
+    std::vector<float> h_output(batch_size * output_size, 0);
 
     // get prediction results
     output_.ToHost(h_output.data(), h_output.size());

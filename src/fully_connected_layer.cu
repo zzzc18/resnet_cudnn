@@ -4,7 +4,7 @@
 
 #include "fully_connected_layer.h"
 
-__global__ void InitiateVecOnes(flt_type *d_one_vec, size_t length) {
+__global__ void InitiateVecOnes(float *d_one_vec, size_t length) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (i >= length) return;
@@ -47,7 +47,7 @@ void Fully_connected::DescriptorsAndWorkSpace() {
 
     int batch_size = input_.get_n();
     checkCudaErrors(
-        cudaMalloc((void **)&d_one_vec, sizeof(flt_type) * batch_size));
+        cudaMalloc((void **)&d_one_vec, sizeof(float) * batch_size));
     InitiateVecOnes<<<(batch_size + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
                       BLOCK_DIM_1D>>>(d_one_vec, batch_size);
 }
@@ -62,10 +62,11 @@ void Fully_connected::Forward() {
                                   output_.CudaPtr(), output_shape_));
 
     // output += biases * d-one-vecT
-    checkCublasErrors(cublasSgemm(
-        cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_N, output_shape_, batch_size, 1,
-        &cuda_->one, biases_.CudaPtr(), output_shape_, d_one_vec, 1,
-        &cuda_->one, output_.CudaPtr(), output_shape_));
+    if (useBias_)
+        checkCublasErrors(cublasSgemm(
+            cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_N, output_shape_,
+            batch_size, 1, &cuda_->one, biases_.CudaPtr(), output_shape_,
+            d_one_vec, 1, &cuda_->one, output_.CudaPtr(), output_shape_));
 
 #if (DEBUG_DENSE & 0x01)
     input_.print(name_ + "::input", true);
@@ -76,11 +77,12 @@ void Fully_connected::Forward() {
     return;
 }
 
-void Fully_connected::Backward(BlobPointer<flt_type> const &labels) {
+void Fully_connected::Backward(BlobPointer<float> const &labels) {
     int batch_size = input_.get_n();
-    cublasSgemv(cuda_->cublas(), CUBLAS_OP_N, output_shape_, batch_size,
-                &cuda_->one, grad_output_.CudaPtr(), output_shape_, d_one_vec,
-                1, &cuda_->zero, grad_biases_.CudaPtr(), 1);
+    if (useBias_)
+        cublasSgemv(cuda_->cublas(), CUBLAS_OP_N, output_shape_, batch_size,
+                    &cuda_->one, grad_output_.CudaPtr(), output_shape_,
+                    d_one_vec, 1, &cuda_->zero, grad_biases_.CudaPtr(), 1);
 
     // dw = x * (dy)T
     cublasSgemm(cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_T, input_shape_,

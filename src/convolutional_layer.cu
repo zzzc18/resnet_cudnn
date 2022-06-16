@@ -97,9 +97,11 @@ void Conv2D::Forward() {
         d_workspace_, workspace_shape_, &cuda_->zero, output_desc_,
         output_.CudaPtr()));
 
-    checkCudnnErrors(cudnnAddTensor(cuda_->cudnn(), &cuda_->one, biases_desc_,
-                                    biases_.CudaPtr(), &cuda_->one,
-                                    output_desc_, output_.CudaPtr()));
+    if (useBias_) {
+        checkCudnnErrors(cudnnAddTensor(
+            cuda_->cudnn(), &cuda_->one, biases_desc_, biases_.CudaPtr(),
+            &cuda_->one, output_desc_, output_.CudaPtr()));
+    }
 
 #if (DEBUG_CONV & 0x01)
     input_.print(name_ + "::input", true, input_.GetWidth());
@@ -111,11 +113,13 @@ void Conv2D::Forward() {
     return;
 }
 
-void Conv2D::Backward(BlobPointer<flt_type> const &labels) {
+void Conv2D::Backward(BlobPointer<float> const &labels) {
     // gradients of biases
-    checkCudnnErrors(cudnnConvolutionBackwardBias(
-        cuda_->cudnn(), &cuda_->one, output_desc_, grad_output_.CudaPtr(),
-        &cuda_->zero, biases_desc_, grad_biases_.CudaPtr()));
+    if (useBias_) {
+        checkCudnnErrors(cudnnConvolutionBackwardBias(
+            cuda_->cudnn(), &cuda_->one, output_desc_, grad_output_.CudaPtr(),
+            &cuda_->zero, biases_desc_, grad_biases_.CudaPtr()));
+    }
 
     // gradients of weights
     checkCudnnErrors(cudnnConvolutionBackwardFilter(

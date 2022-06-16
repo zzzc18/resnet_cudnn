@@ -45,9 +45,8 @@ inline void ParseMnistHeader(std::ifstream &ifs, MnistHeader &header) {
 }
 
 inline void ParseOneMnistImage(std::ifstream &ifs, const MnistHeader &header,
-                               flt_type scale_min, flt_type scale_max,
-                               int x_padding, int y_padding,
-                               std::vector<flt_type> &dst) {
+                               float scale_min, float scale_max, int x_padding,
+                               int y_padding, std::vector<float> &dst) {
     const int width = header._num_cols + 2 * x_padding;
     const int height = header._num_rows + 2 * y_padding;
 
@@ -61,7 +60,7 @@ inline void ParseOneMnistImage(std::ifstream &ifs, const MnistHeader &header,
     for (uint32_t y = 0; y < header._num_rows; y++)
         for (uint32_t x = 0; x < header._num_cols; x++)
             dst[width * (y + y_padding) + x + x_padding] =
-                (image_vec[y * header._num_cols + x] / flt_type(255)) *
+                (image_vec[y * header._num_cols + x] / float(255)) *
                     (scale_max - scale_min) +
                 scale_min;
 }
@@ -126,8 +125,8 @@ inline void ParseMnistLabels(const std::string &label_file,
  *
  **/
 inline void ParseMnistImages(const std::string &image_file,
-                             std::vector<one_image> *images, flt_type scale_min,
-                             flt_type scale_max, int x_padding, int y_padding) {
+                             std::vector<one_image> *images, float scale_min,
+                             float scale_max, int x_padding, int y_padding) {
     if (x_padding < 0 || y_padding < 0)
         throw nn_error("padding size must not be negative");
     if (scale_min >= scale_max)

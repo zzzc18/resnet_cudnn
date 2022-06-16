@@ -27,7 +27,7 @@ class Softmax : public Layer {
         std::vector<std::array<int, 4>> &w_p,
         std::vector<std::array<int, 4>> &b_p) override;
     virtual void Forward() override;
-    virtual void Backward(BlobPointer<flt_type> const &labels) override;
+    virtual void Backward(BlobPointer<float> const &labels) override;
 
     int ObtainPredictionAccuracy(std::vector<label_t> const &labels,
                                  std::vector<int> &confusion_matrix);

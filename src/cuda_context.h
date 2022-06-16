@@ -21,9 +21,9 @@ class CudaContext {
 
     cudnnHandle_t cudnn() { return _cudnn_handle; };
 
-    flt_type const one = 1.f;
-    flt_type const zero = 0.f;
-    flt_type const minus_one = -1.f;
+    float const one = 1.f;
+    float const zero = 0.f;
+    float const minus_one = -1.f;
 
    private:
     cublasHandle_t _cublas_handle;

@@ -10,8 +10,6 @@
 #include <cudnn_version.h>
 #include <curand.h>
 
-#include "lenet_5_common.h"
-
 #define BLOCK_DIM_1D 512
 #define BLOCK_DIM 16
 

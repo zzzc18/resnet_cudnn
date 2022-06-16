@@ -8,6 +8,7 @@
 #include <string>
 
 #include "cuda_helper.h"
+#include "utilities_sc.h"
 
 template <typename T>
 class BlobPointer {

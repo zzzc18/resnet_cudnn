@@ -10,7 +10,7 @@
 #include "network.h"
 #include "utilities_sc.h"
 
-__global__ void setZero(flt_type *d_arr, size_t N) { memset(d_arr, 0, N); }
+__global__ void setZero(float *d_arr, size_t N) { memset(d_arr, 0, N); }
 
 Network::Network() {
     // nothing
@@ -27,6 +27,13 @@ Network::~Network() {
 
     if (d_weights_ != nullptr) checkCudaErrors(cudaFree(d_weights_));
     if (d_biases_ != nullptr) checkCudaErrors(cudaFree(d_biases_));
+}
+
+void Network::SetWorkloadType(WorkloadType const &in) {
+    phase_ = in;
+    for (auto layer : layers_) {
+        layer->SetWorkloadType(in);
+    }
 }
 
 void Network::Forward() {
@@ -49,7 +56,7 @@ void Network::Forward() {
     }
 }
 
-void Network::Backward(BlobPointer<flt_type> const &labels) {
+void Network::Backward(BlobPointer<float> const &labels) {
     if (phase_ == WorkloadType::inference) return;
 
     // back propagation.. update weights internally.....
@@ -75,14 +82,14 @@ void Network::Backward(BlobPointer<flt_type> const &labels) {
     }
 }
 
-void Network::Update(flt_type const learning_rate) {
+void Network::Update(float const learning_rate) {
     if (phase_ == WorkloadType::inference) return;
 
 #if (DEBUG_UPDATE)
     std::cout << "Start update.. lr = " << learning_rate << "\n";
 #endif
 
-    flt_type eps = -1.f * learning_rate;
+    float eps = -1.f * learning_rate;
 
     // w = w + eps * dw
     checkCublasErrors(cublasSaxpy(cuda_.cublas(), length_weights_, &eps,
@@ -107,50 +114,23 @@ int Network::ObtainPredictionAccuracy(std::vector<label_t> const &target,
     return layer->ObtainPredictionAccuracy(target, confusion_matrix);
 }
 
+void AddBottleneckBlock() {}
+
 void Network::AddLayers() {
-    layers_.emplace_back(
-        new Conv2D("conv0", 64, 7, 1, 3));  //[224x224x3]->[224x224x64]
-    layers_.emplace_back(new Activation("tanh", CUDNN_ACTIVATION_TANH));
-    layers_.emplace_back(new Pooling(
-        "pool", 2, 0, 2, CUDNN_POOLING_MAX));  //[224x224x64]->[112x112x64]
-
-    layers_.emplace_back(
-        new Conv2D("conv1", 128, 5, 1, 2));  //[112x112x64]->[112x112x128]
-    layers_.emplace_back(new Activation("tanh", CUDNN_ACTIVATION_TANH));
-    layers_.emplace_back(new Pooling(
-        "pool", 2, 0, 2, CUDNN_POOLING_MAX));  //[112x112x128]->[56x56x128]
-
-    layers_.emplace_back(
-        new Conv2D("conv2", 256, 3, 1, 1));  //[56x56x128]->[56x56x256]
-    layers_.emplace_back(new Activation("tanh", CUDNN_ACTIVATION_TANH));
-    layers_.emplace_back(
-        new Pooling("pool", 2, 0, 2, CUDNN_POOLING_MAX));  //[28x28x256]
-
-    layers_.emplace_back(
-        new Conv2D("conv3", 256, 3, 1, 1));  //[28x28x256]->[28x28x256]
-    layers_.emplace_back(new Activation("tanh", CUDNN_ACTIVATION_TANH));
-    layers_.emplace_back(
-        new Pooling("pool", 2, 0, 2, CUDNN_POOLING_MAX));  //[14x14x256]
-
-    layers_.emplace_back(
-        new Conv2D("conv4", 256, 3, 1, 1));  //[14x14x256]->[14x14x256]
-    layers_.emplace_back(new Activation("tanh", CUDNN_ACTIVATION_TANH));
-    layers_.emplace_back(
-        new Pooling("pool", 2, 0, 2, CUDNN_POOLING_MAX));  //[7x7x256]
-
-    layers_.emplace_back(
-        new Conv2D("conv5", 512, 3, 1, 1));  //[7x7x256]->[7x7x512]
-    layers_.emplace_back(new Activation("tanh", CUDNN_ACTIVATION_TANH));
+    // ResNet
+    layers_.emplace_back(new Conv2D("conv1", 64, 7, false, 2, 3));
+    layers_.emplace_back(new Batchnorm2D("bn1"));
+    layers_.emplace_back(new Activation("relu", CUDNN_ACTIVATION_RELU, 2));
+    layers_.emplace_back(new Pooling("pool", 3, 0, 2, CUDNN_POOLING_MAX));
 
     layers_.emplace_back(new Fully_connected("fully_connected", 1000));
-    layers_.emplace_back(new Activation("tanh", CUDNN_ACTIVATION_TANH));
     layers_.emplace_back(new Softmax("softmax"));
 
     layers_[0]->SetGradientStop();
 }
 
 void Network::Train(const Dataset<dataType> *datasetPtr,
-                    flt_type const learning_rate) {
+                    float const learning_rate) {
     std::vector<int> rand_perm(datasetPtr->Length());
     for (size_t i = 0; i < datasetPtr->Length(); i++) rand_perm[i] = i;
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -161,18 +141,18 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
     int batch_size_train = this->GetBatchSize();
     int batch_count_train = datasetPtr->Length() / batch_size_train;
     int size_one_feature = 224 * 224 * 3;
-    std::vector<flt_type> samples(size_one_feature * batch_size_train);
-    std::vector<flt_type> labels(1000 * batch_size_train, 0.0);
+    std::vector<float> samples(size_one_feature * batch_size_train);
+    std::vector<float> labels(1000 * batch_size_train, 0.0);
 
-    flt_type *d_train_labels{nullptr};
+    float *d_train_labels{nullptr};
     checkCudaErrors(cudaMalloc((void **)&d_train_labels,
-                               sizeof(flt_type) * batch_size_train * 1000));
-    BlobPointer<flt_type> train_labels_ptr(batch_size_train, 1000, 1, 1,
-                                           d_train_labels);
+                               sizeof(float) * batch_size_train * 1000));
+    BlobPointer<float> train_labels_ptr(batch_size_train, 1000, 1, 1,
+                                        d_train_labels);
 
     std::cout << "训练 " << batch_count_train << "\n";
     for (int step = 0; step < batch_count_train; step++) {
-#pragma omp parallel for num_threads(12)
+#pragma omp parallel for num_threads(14)
         for (int i = 0; i < batch_size_train; i++) {
             dataType item =
                 datasetPtr->GetItem(rand_perm[step * batch_size_train + i]);
@@ -208,80 +188,13 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
     std::cout << "\n";
 }
 
-// void Network::Train(std::vector<one_image> const &train_sample,
-//                     std::vector<label_t> const &train_label,
-//                     flt_type const learning_rate) {
-//     std::vector<int> rand_perm(train_sample.size());
-//     for (size_t i = 0; i < train_sample.size(); i++) rand_perm[i] = i;
-
-//     int index = 0, progress = 0;
-//     int batch_size_train = this->GetBatchSize();
-//     int batch_count_train = train_sample.size() / batch_size_train;
-//     int size_one_feature =
-//         LeNet_5::kLengthOfMapAtLayer0 * LeNet_5::kLengthOfMapAtLayer0;
-//     std::vector<flt_type> samples(size_one_feature * batch_size_train);
-//     std::vector<flt_type> labels(LeNet_5::kNumClasses * batch_size_train,
-//     0.0);
-
-//     flt_type *d_train_labels{nullptr};
-//     checkCudaErrors(
-//         cudaMalloc((void **)&d_train_labels,
-//                    sizeof(flt_type) * batch_size_train *
-//                    LeNet_5::kNumClasses));
-//     BlobPointer<flt_type> train_labels_ptr(
-//         batch_size_train, LeNet_5::kNumClasses, 1, 1, d_train_labels);
-
-//     std::cout << "训练 " << batch_count_train << "\n";
-//     for (int step = 0; step < batch_count_train; step++) {
-//         //    for(int step = 0; step < 2; step++) {
-
-//         for (int i = 0; i < batch_size_train; i++) {
-//             // for(int i = 0; i < 2; i++)
-
-//             std::copy(
-//                 train_sample[rand_perm[step * batch_size_train + i]].begin(),
-//                 train_sample[rand_perm[step * batch_size_train + i]].end(),
-//                 (samples.begin() + i * size_one_feature));
-
-//             labels[i * LeNet_5::kNumClasses +
-//                    train_label[step * batch_size_train + i]] = 1;
-//         }
-
-//         this->layers_[0]->input_.ToDevice(samples);
-//         train_labels_ptr.ToDevice(labels);
-
-//         for (int i = 0; i < batch_size_train; i++) {
-//             labels[i * LeNet_5::kNumClasses +
-//                    train_label[step * batch_size_train + i]] = 0;
-//         }
-
-//         this->Forward();
-
-//         this->Backward(train_labels_ptr);
-
-//         this->Update(learning_rate);
-
-//         // fetch next data
-//         index += batch_size_train;
-//         int k = index * 100 / train_sample.size();
-//         if (progress == 0 || k > progress + 4) {
-//             ProgressBar(k);
-//             progress = k;
-//         }
-//     }
-
-//     checkCudaErrors(cudaFree(d_train_labels));
-
-//     std::cout << "\n";
-// }
-
 void Network::Predict(const Dataset<dataType> *datasetPtr) {
     int num_success = 0;
     int batch_size_test = this->GetBatchSize();
     int batch_count_test = datasetPtr->Length() / batch_size_test;
     int size_one_feature = 224 * 224 * 3;
 
-    std::vector<flt_type> samples(size_one_feature * batch_size_test);
+    std::vector<float> samples(size_one_feature * batch_size_test);
     std::vector<label_t> labels(1000 * batch_size_test, 0);
 
     std::vector<int> confusion_matrix(1000 * 1000, 0);
@@ -319,72 +232,14 @@ void Network::Predict(const Dataset<dataType> *datasetPtr) {
     //     std::cout << std::setw(4) << i << "  ";
     //     for (int j = 0; j < LeNet_5::kNumClasses; j++) {
     //         std::cout << std::setw(4)
-    //                   << confusion_matrix[i * LeNet_5::kNumClasses + j] << "
+    //                   << confusion_matrix[i * LeNet_5::kNumClasses + j]
+    //                   << "
     //                   ";
     //     }
     //     std::cout << "\n";
     // }
     // std::cout << "\n";
 }
-// void Network::Predict(std::vector<one_image> const &test_sample,
-//                       std::vector<label_t> const &test_label) {
-//     int num_success = 0;
-//     int batch_size_test = this->GetBatchSize();
-//     int batch_count_test = test_sample.size() / batch_size_test;
-//     int size_one_feature =
-//         LeNet_5::kLengthOfMapAtLayer0 * LeNet_5::kLengthOfMapAtLayer0;
-
-//     std::vector<flt_type> samples(size_one_feature * batch_size_test);
-//     std::vector<label_t> labels(LeNet_5::kNumClasses * batch_size_test, 0);
-
-//     std::vector<int> confusion_matrix(
-//         LeNet_5::kNumClasses * LeNet_5::kNumClasses, 0);
-
-//     for (auto step = 0; step < batch_count_test; step++) {
-//         //    for(auto step = 0; step < 2; step++){
-
-//         for (int i = 0; i < batch_size_test; i++) {
-//             // for(int i = 0; i < 2; i++)
-
-//             std::copy(test_sample[step * batch_size_test + i].begin(),
-//                       test_sample[step * batch_size_test + i].end(),
-//                       (samples.begin() + i * size_one_feature));
-
-//             labels[i * LeNet_5::kNumClasses +
-//                    test_label[step * batch_size_test + i]] = 1;
-//         }
-
-//         this->layers_[0]->input_.ToDevice(samples);
-
-//         this->Forward();
-
-//         num_success += this->ObtainPredictionAccuracy(labels,
-//         confusion_matrix);
-
-//         for (int i = 0; i < batch_size_test; i++) {
-//             labels[i * LeNet_5::kNumClasses +
-//                    test_label[step * batch_size_test + i]] = 0;
-//         }
-//     }
-
-//     // step 4. calculate loss and accuracy
-
-//     std::cout << "精度: " << num_success << "/" << test_sample.size() <<
-//     "\n"; std::cout << "\n   *  "; for (int i = 0; i < LeNet_5::kNumClasses;
-//     i++)
-//         std::cout << std::setw(4) << i << "  ";
-//     std::cout << "\n";
-//     for (int i = 0; i < LeNet_5::kNumClasses; i++) {
-//         std::cout << std::setw(4) << i << "  ";
-//         for (int j = 0; j < LeNet_5::kNumClasses; j++) {
-//             std::cout << std::setw(4)
-//                       << confusion_matrix[i * LeNet_5::kNumClasses + j] << "
-//                       ";
-//         }
-//         std::cout << "\n";
-//     }
-//     std::cout << "\n";
-// }
 
 void Network::AllocateMemoryForFeatures() {
     if (d_features_ != nullptr) {
@@ -412,12 +267,12 @@ void Network::AllocateMemoryForFeatures() {
     }
 
     checkCudaErrors(
-        cudaMalloc((void **)&d_features_, sizeof(flt_type) * length_max));
+        cudaMalloc((void **)&d_features_, sizeof(float) * length_max));
     checkCudaErrors(
-        cudaMalloc((void **)&d_grad_features_, sizeof(flt_type) * length_max));
+        cudaMalloc((void **)&d_grad_features_, sizeof(float) * length_max));
 
-    flt_type *d_ptr_feature = d_features_;
-    flt_type *d_ptr_grad_feature = d_grad_features_;
+    float *d_ptr_feature = d_features_;
+    float *d_ptr_grad_feature = d_grad_features_;
 
     for (auto layer : layers_) {
         shape = layer->in_shape_;
@@ -483,13 +338,13 @@ void Network::InitWeights() {
         length_biases_ = length_biases;
 
         // weights and biases
-        checkCudaErrors(cudaMalloc((void **)&d_weights_,
-                                   sizeof(flt_type) * length_weights));
         checkCudaErrors(
-            cudaMalloc((void **)&d_biases_, sizeof(flt_type) * length_biases));
+            cudaMalloc((void **)&d_weights_, sizeof(float) * length_weights));
+        checkCudaErrors(
+            cudaMalloc((void **)&d_biases_, sizeof(float) * length_biases));
 
-        flt_type *d_ptr_grad_weights = d_weights_;
-        flt_type *d_ptr_grad_biases = d_biases_;
+        float *d_ptr_grad_weights = d_weights_;
+        float *d_ptr_grad_biases = d_biases_;
 
         int i = 0;
         for (auto layer : layers_) {
@@ -511,9 +366,9 @@ void Network::InitWeights() {
 
         // gradients of weights and biases
         checkCudaErrors(cudaMalloc((void **)&d_grad_weights_,
-                                   sizeof(flt_type) * length_weights));
+                                   sizeof(float) * length_weights));
         checkCudaErrors(cudaMalloc((void **)&d_grad_biases_,
-                                   sizeof(flt_type) * length_biases));
+                                   sizeof(float) * length_biases));
 
         d_ptr_grad_weights = d_grad_weights_;
         d_ptr_grad_biases = d_grad_biases_;
@@ -532,39 +387,9 @@ void Network::InitWeights() {
             i++;
         }
     } else {
-        // dim3 grid(1, 1, 1), block(256, 1, 1);
-        // size_t N = sizeof(flt_type) * length_weights_;
-        // grid.x = N / block.x + 1;
-        // setZero<<<grid, block>>>(d_grad_weights_, N);
-
-        // N = sizeof(flt_type) * length_biases_;
-        // grid.x = N / block.x + 1;
-        // setZero<<<grid, block>>>(d_grad_biases_, N);
-
-        // float sum = 0;
-        // float *tmp = (float *)malloc(sizeof(flt_type) * length_weights_);
-        // checkCudaErrors(cudaMemcpy(tmp, d_grad_weights_,
-        //                            sizeof(flt_type) * length_weights_,
-        //                            cudaMemcpyDeviceToHost));
-        // checkCudaErrors(cudaDeviceSynchronize());
-        // for (int i = 0; i < length_weights_; i++) {
-        //     sum += tmp[i];
-        // }
-        // std::cout << "Before " << sum << "\n";
-
         checkCudaErrors(
-            cudaMemset(d_grad_weights_, 0, sizeof(flt_type) * length_weights_));
+            cudaMemset(d_grad_weights_, 0, sizeof(float) * length_weights_));
         checkCudaErrors(
-            cudaMemset(d_grad_biases_, 0, sizeof(flt_type) * length_biases_));
-
-        // checkCudaErrors(cudaMemcpy(tmp, d_grad_weights_,
-        //                            sizeof(flt_type) * length_weights_,
-        //                            cudaMemcpyDeviceToHost));
-        // checkCudaErrors(cudaDeviceSynchronize());
-        // sum = 0;
-        // for (int i = 0; i < length_weights_; i++) {
-        //     sum += tmp[i];
-        // }
-        // std::cout << "After " << sum << "\n";
+            cudaMemset(d_grad_biases_, 0, sizeof(float) * length_biases_));
     }
 }

@@ -34,21 +34,16 @@ ${TARGET}: $(OBJ_DIR)/drv_cnn_cuda.o $(OBJ_DIR)/layer.o\
 	$(OBJ_DIR)/fully_connected_layer.o\
 	$(OBJ_DIR)/pooling_layer.o\
 	$(OBJ_DIR)/activation_layer.o\
+	$(OBJ_DIR)/batchnorm_layer.o\
+	$(OBJ_DIR)/residual_layer.o\
 	$(OBJ_DIR)/network.o
 	@echo "------------- Buliding ${TARGET} ------------"
 	$(NVCC)  $(ALL_CCFLAGS) $(GENCODE_FLAGS) $^ -o $@
 	@echo
 
-# $(OBJ_DIR)/Dataset.o\
-# $(OBJ_DIR)/ImageNetParser.o
 $(OBJ_DIR)/%.o : ${SRC_DIR}/%.cc
 	$(NVCC) $(ALL_CCFLAGS) $(GENCODE_FLAGS)  -c $< -o $@
 
-# $(OBJ_DIR)/Dataset.o : ${SRC_DIR}/Dataset/Dataset.cc
-# 	$(NVCC) $(ALL_CCFLAGS) $(GENCODE_FLAGS)  -c $< -o $@
-
-# $(OBJ_DIR)/ImageNetParser.o : ${SRC_DIR}/ImageNetParser/ImageNetParser.cc
-# 	$(NVCC) $(ALL_CCFLAGS) $(GENCODE_FLAGS)  -c $< -o $@
 
 $(OBJ_DIR)/%.o : ${SRC_DIR}/%.cu
 	$(NVCC) $(ALL_CCFLAGS) $(GENCODE_FLAGS)  -c $< -o $@

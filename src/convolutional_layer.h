@@ -10,13 +10,14 @@
 class Conv2D : public Layer {
    public:
     Conv2D(std::string const &name, int const out_channels,
-           int const kernel_size, int const stride = 1, int const padding = 0,
-           int const dilation = 1)
+           int const kernel_size, bool useBias, int const stride = 1,
+           int const padding = 0, int const dilation = 1)
         : out_channels_(out_channels),
           kernel_size_(kernel_size),
           stride_(stride),
           padding_(padding),
-          dilation_(dilation) {
+          dilation_(dilation),
+          useBias_(useBias) {
         SetName(name);
         checkCudnnErrors(cudnnCreateFilterDescriptor(&filter_desc_));
 
@@ -41,7 +42,7 @@ class Conv2D : public Layer {
         std::vector<std::array<int, 4>> &w_p,
         std::vector<std::array<int, 4>> &b_p) override;
     virtual void Forward() override;
-    virtual void Backward(BlobPointer<flt_type> const &labels) override;
+    virtual void Backward(BlobPointer<float> const &labels) override;
 
     virtual void DescriptorsAndWorkSpace() override;
 
@@ -51,6 +52,7 @@ class Conv2D : public Layer {
     int stride_;
     int padding_;
     int dilation_;
+    bool useBias_;
 
     std::array<int, 4> output_shape_;
     cudnnConvolutionDescriptor_t conv_desc_;

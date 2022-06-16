@@ -9,7 +9,9 @@
 
 class Fully_connected : public Layer {
    public:
-    Fully_connected(std::string const &name, int const output_size) {
+    Fully_connected(std::string const &name, int const output_size,
+                    bool useBias = true)
+        : useBias_(useBias) {
         SetName(name);
         output_shape_ = output_size;
     }
@@ -24,13 +26,14 @@ class Fully_connected : public Layer {
         std::vector<std::array<int, 4>> &w_p,
         std::vector<std::array<int, 4>> &b_p) override;
     virtual void Forward() override;
-    virtual void Backward(BlobPointer<flt_type> const &labels) override;
+    virtual void Backward(BlobPointer<float> const &labels) override;
 
     virtual void DescriptorsAndWorkSpace() override;
 
    private:
     int input_shape_ = 0;
     int output_shape_ = 0;
+    bool useBias_;
 
-    flt_type *d_one_vec{nullptr};
+    float *d_one_vec{nullptr};
 };

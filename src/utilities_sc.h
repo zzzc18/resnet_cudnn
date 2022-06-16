@@ -11,9 +11,8 @@
 #include <vector>
 
 using uchar = unsigned char;
-using flt_type = float;
 using label_t = uint32_t;
-using one_image = std::vector<flt_type>;
+using one_image = std::vector<float>;
 
 class Timer {
    private:

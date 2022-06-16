@@ -37,7 +37,7 @@ void Activation::Forward() {
     return;
 }
 
-void Activation::Backward(BlobPointer<flt_type> const &labels) {
+void Activation::Backward(BlobPointer<float> const &labels) {
     checkCudnnErrors(cudnnActivationBackward(
         cuda_->cudnn(), act_desc_, &cuda_->one, output_desc_, output_.CudaPtr(),
         output_desc_, grad_output_.CudaPtr(), input_desc_, input_.CudaPtr(),

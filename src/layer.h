@@ -6,6 +6,9 @@
 #include "blob.h"
 #include "cuda_context.h"
 #include "cuda_helper.h"
+#include "utilities_sc.h"
+
+enum class WorkloadType { training, inference };
 
 class Layer {
    public:
@@ -19,14 +22,18 @@ class Layer {
     std::string GetName() const { return name_; }
     void SetName(std::string const &name_in) { name_ = name_in; }
 
+    cudnnTensorDescriptor_t &GetOutputDesc() { return output_desc_; }
+    BlobPointer<float> &GetOutput() { return output_; }
+    BlobPointer<float> &GetGradOutput() { return grad_output_; }
+
    protected:
     virtual void Forward() = 0;
-    virtual void Backward(BlobPointer<flt_type> const &labels) = 0;
+    virtual void Backward(BlobPointer<float> const &labels) = 0;
 
     virtual void InitWeightsShape(std::vector<std::array<int, 4>> &w_p,
                                   std::vector<std::array<int, 4>> &b_p) = 0;
     // initialize weights along with the input size
-    void InitiateWeightsAndBiases();
+    virtual void InitiateWeightsAndBiases();
 
     virtual std::array<int, 4> InitFeatureShape(
         std::array<int, 4> const &input_shape) = 0;
@@ -35,18 +42,19 @@ class Layer {
     virtual void DescriptorsAndWorkSpace() = 0;
 
     void SetCudaContext(CudaContext *context) { cuda_ = context; }
+    void SetWorkloadType(WorkloadType const &in) { phase_ = in; }
 
     // memory pointers
-    BlobPointer<flt_type> input_;        // x
-    BlobPointer<flt_type> output_;       // y
-    BlobPointer<flt_type> grad_input_;   // dx
-    BlobPointer<flt_type> grad_output_;  // dy
+    BlobPointer<float> input_;        // x
+    BlobPointer<float> output_;       // y
+    BlobPointer<float> grad_input_;   // dx
+    BlobPointer<float> grad_output_;  // dy
 
-    BlobPointer<flt_type> grad_weights_;  // dw
-    BlobPointer<flt_type> grad_biases_;   // db
+    BlobPointer<float> grad_weights_;  // dw
+    BlobPointer<float> grad_biases_;   // db
 
-    BlobPointer<flt_type> weights_;  // w
-    BlobPointer<flt_type> biases_;   // b
+    BlobPointer<float> weights_;  // w
+    BlobPointer<float> biases_;   // b
 
     // cuda and cudnn enviroments
     CudaContext *cuda_{nullptr};
@@ -64,4 +72,7 @@ class Layer {
    private:
     void SetGradientStop() { gradient_stop_ = true; }
     std::string name_;
+
+   protected:
+    WorkloadType phase_{WorkloadType::inference};
 };

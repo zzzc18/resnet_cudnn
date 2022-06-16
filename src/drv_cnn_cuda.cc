@@ -9,15 +9,13 @@
 #include "mnist_parser.h"
 #include "network.h"
 
-using namespace LeNet_5;
-
 int main(int argc, char *argv[]) {
     ImageNetDataset<dataType> trainDataset("ImageNet", "train");
     ImageNetDataset<dataType> valDataset("ImageNet", "val");
 
     int batch_size_train = 64;
 
-    flt_type learning_rate = 0.01 * sqrt((flt_type)batch_size_train);
+    float learning_rate = 0.01 * sqrt((float)batch_size_train);
 
     int batch_size_test = 64;
 
