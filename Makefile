@@ -36,6 +36,7 @@ ${TARGET}: $(OBJ_DIR)/drv_cnn_cuda.o $(OBJ_DIR)/layer.o\
 	$(OBJ_DIR)/activation_layer.o\
 	$(OBJ_DIR)/batchnorm_layer.o\
 	$(OBJ_DIR)/residual_layer.o\
+	$(OBJ_DIR)/resnet.o\
 	$(OBJ_DIR)/network.o
 	@echo "------------- Buliding ${TARGET} ------------"
 	$(NVCC)  $(ALL_CCFLAGS) $(GENCODE_FLAGS) $^ -o $@

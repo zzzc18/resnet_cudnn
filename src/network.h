@@ -3,6 +3,11 @@
  */
 #pragma once
 
+#include <map>
+#include <queue>
+#include <set>
+#include <vector>
+
 #include "Dataset/Dataset.h"
 #include "ImageNetParser/ImageNetParser.h"
 #include "activation_layer.h"
@@ -13,6 +18,17 @@
 #include "residual_layer.h"
 #include "softmax_layer.h"
 
+class LayerGraph {
+   public:
+    LayerGraph() {}
+    void AddEdge(Layer *from, Layer *to);
+    void TopoSort();
+
+    std::vector<Layer *> layers_;  // In topological
+    std::set<Layer *> layerCollection_;
+    std::map<Layer *, std::vector<Layer *>> edgeGraph_;
+};
+
 class Network {
    public:
     Network();
@@ -21,7 +37,7 @@ class Network {
     int GetBatchSize() const { return batch_size_; }
     void SetBatchSize(int const in) { batch_size_ = in; }
 
-    void AddLayers();
+    virtual void AddLayers();
     void SetWorkloadType(WorkloadType const &in);
     void Train(const Dataset<dataType> *datasetPtr, float const learning_rate);
 
@@ -31,7 +47,7 @@ class Network {
     void InitWeights();
     void DescriptorsAndWorkspace();
 
-   private:
+   protected:
     void SetCudaContext();
     void Forward();
     void Backward(BlobPointer<float> const &labels);
@@ -55,7 +71,7 @@ class Network {
     bool is_memory_for_weights_allocated_{false};
 
     // layers in the network
-    std::vector<Layer *> layers_;
+    LayerGraph layerGraph_;
     int batch_size_;
 
     CudaContext cuda_;

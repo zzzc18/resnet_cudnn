@@ -4,12 +4,7 @@
 
 #include "activation_layer.h"
 
-std::array<int, 4> Activation::InitFeatureShape(
-    std::array<int, 4> const &in_shape) {
-    in_shape_ = in_shape;
-    out_shape_ = in_shape;
-    return out_shape_;
-}
+void Activation::InitFeatureShape() { out_shape_ = in_shape_; }
 
 void Activation::InitWeightsShape(std::vector<std::array<int, 4>> &w_l,
                                   std::vector<std::array<int, 4>> &b_l) {

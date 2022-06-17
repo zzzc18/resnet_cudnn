@@ -36,8 +36,7 @@ class Conv2D : public Layer {
         biases_desc_ = nullptr;
     }
 
-    virtual std::array<int, 4> InitFeatureShape(
-        std::array<int, 4> const &in_shape) override;
+    virtual void InitFeatureShape() override;
     virtual void InitWeightsShape(
         std::vector<std::array<int, 4>> &w_p,
         std::vector<std::array<int, 4>> &b_p) override;

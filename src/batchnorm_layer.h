@@ -9,10 +9,11 @@
 
 class Batchnorm2D : public Layer {
    public:
-    Batchnorm2D(std::string const &name,
+    Batchnorm2D(std::string const &name, bool zeroInitWeight = false,
                 const double exponentialAverageFactor = 0.1,
-                const double epsilon = 1E-6)
-        : exponentialAverageFactor_(exponentialAverageFactor),
+                const double epsilon = 1E-5)
+        : zeroInitWeight_(zeroInitWeight),
+          exponentialAverageFactor_(exponentialAverageFactor),
           epsilon_(epsilon) {
         SetName(name);
 
@@ -32,8 +33,7 @@ class Batchnorm2D : public Layer {
         bnDesc_ = nullptr;
     }
 
-    virtual std::array<int, 4> InitFeatureShape(
-        std::array<int, 4> const &in_shape) override;
+    virtual void InitFeatureShape() override;
     virtual void InitWeightsShape(
         std::vector<std::array<int, 4>> &w_p,
         std::vector<std::array<int, 4>> &b_p) override;
@@ -44,6 +44,8 @@ class Batchnorm2D : public Layer {
     virtual void InitiateWeightsAndBiases() override;
 
    private:
+    bool zeroInitWeight_;
+
     double exponentialAverageFactor_;
     double epsilon_;
 

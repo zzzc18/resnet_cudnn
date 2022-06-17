@@ -57,16 +57,11 @@ void Conv2D::AllocateDnnWorkspace() {
     }
 }
 
-std::array<int, 4> Conv2D::InitFeatureShape(
-    std::array<int, 4> const &in_shape) {
-    in_shape_ = in_shape;
-
-    out_shape_[0] = in_shape[0];
+void Conv2D::InitFeatureShape() {
+    out_shape_[0] = in_shape_[0];
     out_shape_[1] = out_channels_;
     out_shape_[2] = (in_shape_[2] + 2 * padding_ - kernel_size_) / stride_ + 1;
     out_shape_[3] = (in_shape_[3] + 2 * padding_ - kernel_size_) / stride_ + 1;
-
-    return out_shape_;
 }
 
 void Conv2D::InitWeightsShape(std::vector<std::array<int, 4>> &w_l,

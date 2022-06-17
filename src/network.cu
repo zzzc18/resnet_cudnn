@@ -10,7 +10,50 @@
 #include "network.h"
 #include "utilities_sc.h"
 
-__global__ void setZero(float *d_arr, size_t N) { memset(d_arr, 0, N); }
+void LayerGraph::AddEdge(Layer *from, Layer *to) {
+    layerCollection_.insert(from);
+    layerCollection_.insert(to);
+    edgeGraph_[from].emplace_back(to);
+}
+
+void LayerGraph::TopoSort() {
+    assert(edgeGraph_.size() > 0);
+    std::queue<Layer *> que;
+    std::map<Layer *, int> indegrees;
+    std::vector<Layer *>().swap(layers_);  // clear layers_
+
+    for (auto node : layerCollection_) {
+        indegrees[node] = 0;
+    }
+
+    for (auto edgeSet : edgeGraph_) {
+        for (auto node : edgeSet.second) {
+            indegrees[node]++;
+        }
+    }
+
+    for (auto node : layerCollection_) {
+        if (indegrees[node] == 0) {
+            que.push(node);
+        }
+    }
+
+    while (!que.empty()) {
+        Layer *srcNode = que.front();
+        layers_.emplace_back(srcNode);
+        que.pop();
+        for (auto dstNode : edgeGraph_[srcNode]) {
+            int ind = --indegrees[dstNode];
+            if (ind == 0) {
+                que.push(dstNode);
+            }
+        }
+    }
+
+    // for (auto layer : layers_) {
+    //     std::cout << layer->GetName() << "\n";
+    // }
+}
 
 Network::Network() {
     // nothing
@@ -18,7 +61,7 @@ Network::Network() {
 
 Network::~Network() {
     // destroy network
-    for (auto layer : layers_) delete layer;
+    for (auto layer : layerGraph_.layers_) delete layer;
     if (d_features_ != nullptr) checkCudaErrors(cudaFree(d_features_));
     if (d_grad_features_ != nullptr)
         checkCudaErrors(cudaFree(d_grad_features_));
@@ -31,13 +74,13 @@ Network::~Network() {
 
 void Network::SetWorkloadType(WorkloadType const &in) {
     phase_ = in;
-    for (auto layer : layers_) {
+    for (auto layer : layerGraph_.layers_) {
         layer->SetWorkloadType(in);
     }
 }
 
 void Network::Forward() {
-    for (auto layer : layers_) {
+    for (auto layer : layerGraph_.layers_) {
         layer->Forward();
 
 #if (DEBUG_FORWARD)
@@ -60,7 +103,8 @@ void Network::Backward(BlobPointer<float> const &labels) {
     if (phase_ == WorkloadType::inference) return;
 
     // back propagation.. update weights internally.....
-    for (auto layer = layers_.rbegin(); layer != layers_.rend(); layer++) {
+    for (auto layer = layerGraph_.layers_.rbegin();
+         layer != layerGraph_.layers_.rend(); layer++) {
         // getting back propagation status with gradient size
 #if (DEBUG_BACKWARD)
         std::cout << "[[Backward]][[ " << std::setw(7) << (*layer)->GetName()
@@ -103,30 +147,85 @@ void Network::Update(float const learning_rate) {
 // 1. initialize cuda resource container
 // 2. register the resource container to all the layers
 void Network::SetCudaContext() {
-    for (auto layer : layers_) {
+    for (auto layer : layerGraph_.layers_) {
         layer->SetCudaContext(&cuda_);
     }
 }
 
 int Network::ObtainPredictionAccuracy(std::vector<label_t> const &target,
                                       std::vector<int> &confusion_matrix) {
-    Layer *layer = layers_.back();
+    Layer *layer = layerGraph_.layers_.back();
     return layer->ObtainPredictionAccuracy(target, confusion_matrix);
 }
 
-void AddBottleneckBlock() {}
-
 void Network::AddLayers() {
-    // ResNet
-    layers_.emplace_back(new Conv2D("conv1", 64, 7, false, 2, 3));
-    layers_.emplace_back(new Batchnorm2D("bn1"));
-    layers_.emplace_back(new Activation("relu", CUDNN_ACTIVATION_RELU, 2));
-    layers_.emplace_back(new Pooling("pool", 3, 0, 2, CUDNN_POOLING_MAX));
+    // AlexNet-BN-residualFC
+    Layer *conv0 = new Conv2D("conv0", 64, 11, false, 4, 2);
+    conv0->SetGradientStop();
+    Layer *bn0 = new Batchnorm2D("bn0");
+    Layer *relu0 = new Activation("relu0", CUDNN_ACTIVATION_RELU, 2);
+    Layer *pool0 = new Pooling("pool0", 3, 0, 2, CUDNN_POOLING_MAX);
+    layerGraph_.AddEdge(conv0, bn0);
+    layerGraph_.AddEdge(bn0, relu0);
+    layerGraph_.AddEdge(relu0, pool0);
 
-    layers_.emplace_back(new Fully_connected("fully_connected", 1000));
-    layers_.emplace_back(new Softmax("softmax"));
+    Layer *conv1 = new Conv2D("conv1", 192, 5, false, 1, 2);
+    Layer *bn1 = new Batchnorm2D("bn1");
+    Layer *relu1 = new Activation("relu1", CUDNN_ACTIVATION_RELU, 2);
+    Layer *pool1 = new Pooling("pool1", 3, 0, 2, CUDNN_POOLING_MAX);
+    layerGraph_.AddEdge(pool0, conv1);
+    layerGraph_.AddEdge(conv1, bn1);
+    layerGraph_.AddEdge(bn1, relu1);
+    layerGraph_.AddEdge(relu1, pool1);
 
-    layers_[0]->SetGradientStop();
+    Layer *conv2 = new Conv2D("conv2", 384, 3, false, 1, 1);
+    Layer *bn2 = new Batchnorm2D("bn2");
+    Layer *relu2 = new Activation("relu2", CUDNN_ACTIVATION_RELU, 2);
+    layerGraph_.AddEdge(pool1, conv2);
+    layerGraph_.AddEdge(conv2, bn2);
+    layerGraph_.AddEdge(bn2, relu2);
+
+    Layer *conv3 = new Conv2D("conv3", 256, 3, false, 1, 1);
+    Layer *bn3 = new Batchnorm2D("bn3");
+    Layer *relu3 = new Activation("relu3", CUDNN_ACTIVATION_RELU, 2);
+    layerGraph_.AddEdge(relu2, conv3);
+    layerGraph_.AddEdge(conv3, bn3);
+    layerGraph_.AddEdge(bn3, relu3);
+
+    Layer *conv4 = new Conv2D("conv4", 256, 3, false, 1, 1);
+    Layer *bn4 = new Batchnorm2D("bn4");
+    Layer *relu4 = new Activation("relu4", CUDNN_ACTIVATION_RELU, 2);
+    Layer *pool4 = new Pooling("pool4", 3, 0, 2, CUDNN_POOLING_MAX);
+    layerGraph_.AddEdge(relu3, conv4);
+    layerGraph_.AddEdge(conv4, bn4);
+    layerGraph_.AddEdge(bn4, relu4);
+    layerGraph_.AddEdge(relu4, pool4);
+
+    Layer *fc0 = new Fully_connected("fc0", 4096, false);
+    Layer *fc0_bn = new Batchnorm2D("fc0_bn");
+    Layer *fc0_relu = new Activation("fc0_relu", CUDNN_ACTIVATION_RELU, 2);
+    layerGraph_.AddEdge(pool4, fc0);
+    layerGraph_.AddEdge(fc0, fc0_bn);
+    layerGraph_.AddEdge(fc0_bn, fc0_relu);
+
+    Layer *fc1 = new Fully_connected("fc1", 4096, false);
+    Layer *fc1_bn = new Batchnorm2D("fc1_bn");
+    Layer *fc1_relu = new Activation("fc1_relu", CUDNN_ACTIVATION_RELU, 2);
+    layerGraph_.AddEdge(fc0_relu, fc1);
+    layerGraph_.AddEdge(fc1, fc1_bn);
+
+    // Residual
+    Layer *res0 = new Residual("res0", fc0_relu, fc1_bn);
+    layerGraph_.AddEdge(fc0_relu, res0);
+    layerGraph_.AddEdge(fc1_bn, res0);
+    layerGraph_.AddEdge(res0, fc1_relu);
+
+    Layer *fc2 = new Fully_connected("fc2", 1000);
+    Layer *softmax = new Softmax("softmax");
+    layerGraph_.AddEdge(fc1_relu, fc2);
+    layerGraph_.AddEdge(fc2, softmax);
+
+    layerGraph_.TopoSort();
 }
 
 void Network::Train(const Dataset<dataType> *datasetPtr,
@@ -163,7 +262,7 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
             free(item.first);
         }
 
-        this->layers_[0]->input_.ToDevice(samples);
+        this->layerGraph_.layers_[0]->input_.ToDevice(samples);
         train_labels_ptr.ToDevice(labels);
 
         this->Forward();
@@ -210,7 +309,7 @@ void Network::Predict(const Dataset<dataType> *datasetPtr) {
             free(item.first);
         }
 
-        this->layers_[0]->input_.ToDevice(samples);
+        this->layerGraph_.layers_[0]->input_.ToDevice(samples);
         this->Forward();
 
         num_success += this->ObtainPredictionAccuracy(labels, confusion_matrix);
@@ -251,7 +350,7 @@ void Network::AllocateMemoryForFeatures() {
         d_grad_features_ = nullptr;
     }
 
-    std::array<int, 4> shape, out_shape;
+    std::array<int, 4> shape;
 
     shape[0] = batch_size_;
     shape[1] = 3;
@@ -261,9 +360,15 @@ void Network::AllocateMemoryForFeatures() {
     /// 1. set the shape of the feature at each layer
     /// 2. get the total length of features among all layers
     int length_max = shape[0] * shape[1] * shape[2] * shape[3];
-    for (auto layer : layers_) {
-        shape = layer->InitFeatureShape(shape);
-        length_max += shape[0] * shape[1] * shape[2] * shape[3];
+
+    layerGraph_.layers_[0]->in_shape_ = shape;
+    for (auto layer : layerGraph_.layers_) {
+        layer->InitFeatureShape();
+        for (auto nextLayer : layerGraph_.edgeGraph_[layer]) {
+            nextLayer->in_shape_ = layer->out_shape_;
+        }
+        length_max += layer->out_shape_[0] * layer->out_shape_[1] *
+                      layer->out_shape_[2] * layer->out_shape_[3];
     }
 
     checkCudaErrors(
@@ -274,26 +379,38 @@ void Network::AllocateMemoryForFeatures() {
     float *d_ptr_feature = d_features_;
     float *d_ptr_grad_feature = d_grad_features_;
 
-    for (auto layer : layers_) {
-        shape = layer->in_shape_;
-        out_shape = layer->out_shape_;
-        int in_length = shape[0] * shape[1] * shape[2] * shape[3];
+    layerGraph_.layers_[0]->input_.Initiate(layerGraph_.layers_[0]->in_shape_,
+                                            d_ptr_feature);
+    layerGraph_.layers_[0]->grad_input_.Initiate(
+        layerGraph_.layers_[0]->in_shape_, d_ptr_grad_feature);
+    int in_length = layerGraph_.layers_[0]->in_shape_[0] *
+                    layerGraph_.layers_[0]->in_shape_[1] *
+                    layerGraph_.layers_[0]->in_shape_[2] *
+                    layerGraph_.layers_[0]->in_shape_[3];
+    d_ptr_feature += in_length;
+    d_ptr_grad_feature += in_length;
+    for (auto layer : layerGraph_.layers_) {
+        int out_length = layer->out_shape_[0] * layer->out_shape_[1] *
+                         layer->out_shape_[2] * layer->out_shape_[3];
+        layer->output_.Initiate(layer->out_shape_, d_ptr_feature);
+        for (auto nextLayer : layerGraph_.edgeGraph_[layer]) {
+            nextLayer->input_.Initiate(layer->out_shape_, d_ptr_feature);
+        }
+        d_ptr_feature += out_length;
 
-        layer->input_.Initiate(shape, d_ptr_feature);
-        layer->grad_input_.Initiate(shape, d_ptr_grad_feature);
-
-        layer->output_.Initiate(out_shape, d_ptr_feature + in_length);
-        d_ptr_feature += in_length;
-
-        layer->grad_output_.Initiate(out_shape, d_ptr_grad_feature + in_length);
-        d_ptr_grad_feature += in_length;
+        layer->grad_output_.Initiate(layer->out_shape_, d_ptr_grad_feature);
+        for (auto nextLayer : layerGraph_.edgeGraph_[layer]) {
+            nextLayer->grad_input_.Initiate(layer->out_shape_,
+                                            d_ptr_grad_feature);
+        }
+        d_ptr_grad_feature += out_length;
     }
     return;
 }
 
 void Network::DescriptorsAndWorkspace() {
     this->SetCudaContext();
-    for (auto layer : layers_) {
+    for (auto layer : layerGraph_.layers_) {
         layer->input_.CreateTensor();
         layer->output_.CreateTensor();
         layer->biases_.CreateTensor();
@@ -313,16 +430,16 @@ void Network::InitWeights() {
             checkCudaErrors(cudaFree(d_grad_biases_));
 
         std::vector<std::array<int, 4>> shape_of_weights, shape_of_biases;
-        shape_of_weights.reserve(layers_.size());
-        shape_of_biases.reserve(layers_.size());
+        shape_of_weights.reserve(layerGraph_.layers_.size());
+        shape_of_biases.reserve(layerGraph_.layers_.size());
 
-        for (auto layer : layers_) {
+        for (auto layer : layerGraph_.layers_) {
             layer->InitWeightsShape(shape_of_weights, shape_of_biases);
         }
 
         int length_weights = 0, length_biases = 0;
-        std::vector<int> len_weight(layers_.size(), 0),
-            len_bias(layers_.size(), 0);
+        std::vector<int> len_weight(layerGraph_.layers_.size(), 0),
+            len_bias(layerGraph_.layers_.size(), 0);
 
         for (size_t i = 0; i < len_weight.size(); i++) {
             len_weight[i] = shape_of_weights[i][0] * shape_of_weights[i][1] *
@@ -347,7 +464,7 @@ void Network::InitWeights() {
         float *d_ptr_grad_biases = d_biases_;
 
         int i = 0;
-        for (auto layer : layers_) {
+        for (auto layer : layerGraph_.layers_) {
             if (len_weight[i] != 0) {
                 auto shape = shape_of_weights[i];
                 layer->weights_.Initiate(shape, d_ptr_grad_weights);
@@ -360,7 +477,7 @@ void Network::InitWeights() {
             i++;
         }
 
-        for (auto layer : layers_) {
+        for (auto layer : layerGraph_.layers_) {
             layer->InitiateWeightsAndBiases();
         }
 
@@ -374,7 +491,7 @@ void Network::InitWeights() {
         d_ptr_grad_biases = d_grad_biases_;
 
         i = 0;
-        for (auto layer : layers_) {
+        for (auto layer : layerGraph_.layers_) {
             if (len_weight[i] != 0) {
                 auto shape = shape_of_weights[i];
                 layer->grad_weights_.Initiate(shape, d_ptr_grad_weights);

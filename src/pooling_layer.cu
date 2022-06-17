@@ -4,16 +4,11 @@
 
 #include "pooling_layer.h"
 
-std::array<int, 4> Pooling::InitFeatureShape(
-    std::array<int, 4> const &in_shape) {
-    in_shape_ = in_shape;
-
+void Pooling::InitFeatureShape() {
     out_shape_[0] = in_shape_[0];
     out_shape_[1] = in_shape_[1];
     out_shape_[2] = (in_shape_[2] + 2 * padding_ - kernel_size_) / stride_ + 1;
     out_shape_[3] = (in_shape_[3] + 2 * padding_ - kernel_size_) / stride_ + 1;
-
-    return out_shape_;
 }
 
 void Pooling::InitWeightsShape(std::vector<std::array<int, 4>> &w_l,

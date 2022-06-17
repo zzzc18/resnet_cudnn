@@ -5,9 +5,8 @@
 #include <iostream>
 
 #include "ImageNetParser/ImageNetParser.h"
-// #include "lenet_5_common.h"
-#include "mnist_parser.h"
 #include "network.h"
+#include "resnet.h"
 
 int main(int argc, char *argv[]) {
     ImageNetDataset<dataType> trainDataset("ImageNet", "train");
@@ -20,6 +19,7 @@ int main(int argc, char *argv[]) {
     int batch_size_test = 64;
 
     Network net;
+    // ResNet net(18);
     net.AddLayers();
 
     const int epoch = 100;

@@ -55,13 +55,7 @@ void CrossEntropyLoss(BlobPointer<float> &output_,
     CrossEntropyLoss(output_.get_n(), output, labelsCPU);
 }
 
-std::array<int, 4> Softmax::InitFeatureShape(
-    std::array<int, 4> const &in_shape) {
-    in_shape_ = in_shape;
-    out_shape_ = in_shape;
-
-    return out_shape_;
-}
+void Softmax::InitFeatureShape() { out_shape_ = in_shape_; }
 
 void Softmax::InitWeightsShape(std::vector<std::array<int, 4>> &w_l,
                                std::vector<std::array<int, 4>> &b_l) {

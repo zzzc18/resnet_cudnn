@@ -12,19 +12,18 @@ __global__ void InitiateVecOnes(float *d_one_vec, size_t length) {
     d_one_vec[i] = 1.f;
 }
 
-std::array<int, 4> Fully_connected::InitFeatureShape(
-    std::array<int, 4> const &in_shape) {
-    in_shape_[0] = in_shape[0];
-    in_shape_[1] = in_shape[1] * in_shape[2] * in_shape[3];
+void Fully_connected::InitFeatureShape() {
+    // Reshape
+    std::array<int, 4> old_in_shape(in_shape_);
+    in_shape_[0] = old_in_shape[0];
+    in_shape_[1] = old_in_shape[1] * old_in_shape[2] * old_in_shape[3];
     in_shape_[2] = 1;
     in_shape_[3] = 1;
 
-    out_shape_[0] = in_shape[0];
+    out_shape_[0] = in_shape_[0];
     out_shape_[1] = output_shape_;
     out_shape_[2] = 1;
     out_shape_[3] = 1;
-
-    return out_shape_;
 }
 
 void Fully_connected::InitWeightsShape(std::vector<std::array<int, 4>> &w_l,

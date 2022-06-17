@@ -22,6 +22,8 @@ class Layer {
     std::string GetName() const { return name_; }
     void SetName(std::string const &name_in) { name_ = name_in; }
 
+    void SetGradientStop() { gradient_stop_ = true; }
+
     cudnnTensorDescriptor_t &GetOutputDesc() { return output_desc_; }
     BlobPointer<float> &GetOutput() { return output_; }
     BlobPointer<float> &GetGradOutput() { return grad_output_; }
@@ -35,8 +37,7 @@ class Layer {
     // initialize weights along with the input size
     virtual void InitiateWeightsAndBiases();
 
-    virtual std::array<int, 4> InitFeatureShape(
-        std::array<int, 4> const &input_shape) = 0;
+    virtual void InitFeatureShape() = 0;
     virtual int ObtainPredictionAccuracy(std::vector<label_t> const &labels,
                                          std::vector<int> &confusion_matrix);
     virtual void DescriptorsAndWorkSpace() = 0;
@@ -70,7 +71,6 @@ class Layer {
     friend class Network;
 
    private:
-    void SetGradientStop() { gradient_stop_ = true; }
     std::string name_;
 
    protected:

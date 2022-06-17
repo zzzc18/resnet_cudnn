@@ -47,10 +47,14 @@ if __name__ == "__main__":
     val_dataloader = DataLoader(
         dataset=val_dataset, batch_size=64, shuffle=False, drop_last=False, num_workers=12)
 
-    model = TestModel()
-    # model = torchvision.models.resnet50(pretrained=False)
-    # optimizer = torch.optim.SGD(model.parameters(), lr=0.08, momentum=0.9)
-    optimizer = torch.optim.Adam(model.parameters(), lr=3E-4)
+    # model = TestModel()
+    model = torchvision.models.resnet18(pretrained=False)
+    # model = torchvision.models.alexnet(pretrained=False)
+    optimizer = torch.optim.SGD(
+        model.parameters(), lr=0.08)
+    # optimizer = torch.optim.SGD(
+    #     model.parameters(), lr=0.08, momentum=0.875, weight_decay=1.0/32768)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=3E-4)
     loss_func = nn.CrossEntropyLoss()
     model = model.cuda()
     writer = SummaryWriter()
@@ -76,7 +80,6 @@ if __name__ == "__main__":
             optimizer.step()
             writer.add_scalar(
                 "train_loss", scalar_value=loss.item(), global_step=step)
-            # print(loss)
 
         print(f"My metric:{metric_method.compute()}")
         metric_method.reset()

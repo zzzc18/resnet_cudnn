@@ -9,7 +9,9 @@
 void Batchnorm2D::InitiateWeightsAndBiases() {
     if (weights_.CudaPtr() == nullptr || biases_.CudaPtr() == nullptr) return;
 
-    std::vector<float> weights(weights_.LengthNchw(), 1.0);
+    float initWeight = 1;
+    if (zeroInitWeight_) initWeight = 0;
+    std::vector<float> weights(weights_.LengthNchw(), initWeight);
     weights_.ToDevice(weights.data(), weights.size());
 
     std::vector<float> biases(biases_.LengthNchw(), 0.0);
@@ -43,11 +45,7 @@ void Batchnorm2D::AllocateBatchnorm2D() {
     }
 }
 
-std::array<int, 4> Batchnorm2D::InitFeatureShape(
-    std::array<int, 4> const &in_shape) {
-    out_shape_ = in_shape_ = in_shape;
-    return out_shape_;
-}
+void Batchnorm2D::InitFeatureShape() { out_shape_ = in_shape_; }
 
 void Batchnorm2D::InitWeightsShape(std::vector<std::array<int, 4>> &w_l,
                                    std::vector<std::array<int, 4>> &b_l) {

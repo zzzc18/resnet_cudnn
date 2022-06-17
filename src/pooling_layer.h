@@ -23,8 +23,7 @@ class Pooling : public Layer {
     }
     ~Pooling() { cudnnDestroyPoolingDescriptor(pool_desc_); }
 
-    virtual std::array<int, 4> InitFeatureShape(
-        std::array<int, 4> const &input_size) override;
+    virtual void InitFeatureShape() override;
     virtual void InitWeightsShape(
         std::vector<std::array<int, 4>> &w_p,
         std::vector<std::array<int, 4>> &b_p) override;
