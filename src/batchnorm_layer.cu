@@ -23,15 +23,23 @@ void Batchnorm2D::AllocateBatchnorm2D() {
     if (resultRunningMean_ == nullptr) {
         checkCudaErrors(cudaMalloc((void **)&resultRunningMean_,
                                    sizeof(float) * input_.GetChannels()));
-        checkCudaErrors(cudaMemset(resultRunningMean_, 0,
-                                   sizeof(float) * input_.GetChannels()));
+        InitiateZeros<<<(input_.GetChannels() + BLOCK_DIM_1D - 1) /
+                            BLOCK_DIM_1D,
+                        BLOCK_DIM_1D>>>((float *)resultRunningMean_,
+                                        input_.GetChannels());
+        // checkCudaErrors(cudaMemset(resultRunningMean_, 0,
+        //                            sizeof(float) * input_.GetChannels()));
     }
 
     if (resultRunningVariance_ == nullptr) {
         checkCudaErrors(cudaMalloc((void **)&resultRunningVariance_,
                                    sizeof(float) * input_.GetChannels()));
-        checkCudaErrors(cudaMemset(resultRunningVariance_, 0,
-                                   sizeof(float) * input_.GetChannels()));
+        InitiateZeros<<<(input_.GetChannels() + BLOCK_DIM_1D - 1) /
+                            BLOCK_DIM_1D,
+                        BLOCK_DIM_1D>>>((float *)resultRunningVariance_,
+                                        input_.GetChannels());
+        // checkCudaErrors(cudaMemset(resultRunningVariance_, 0,
+        //                            sizeof(float) * input_.GetChannels()));
     }
 
     if (resultSaveMean_ == nullptr) {
@@ -115,7 +123,7 @@ void Batchnorm2D::Backward(BlobPointer<float> const &labels) {
         cuda_->cudnn(),           // cudnnHandle_t                    handle,
         CUDNN_BATCHNORM_SPATIAL,  // cudnnBatchNormMode_t             mode,
         &cuda_->one,              // const void                 *alphaDataDiff,
-        &cuda_->zero,             // const void                 *betaDataDiff,
+        &cuda_->one,              // const void                 *betaDataDiff,
         &cuda_->one,              // const void                 *alphaParamDiff,
         &cuda_->zero,             // const void                 *betaParamDiff,
         input_desc_,              // const cudnnTensorDescriptor_t    xDesc,

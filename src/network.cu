@@ -67,6 +67,10 @@ Network::~Network() {
         checkCudaErrors(cudaFree(d_grad_features_));
     if (d_grad_weights_ != nullptr) checkCudaErrors(cudaFree(d_grad_weights_));
     if (d_grad_biases_ != nullptr) checkCudaErrors(cudaFree(d_grad_biases_));
+    if (d_grad_weights_history_ != nullptr)
+        checkCudaErrors(cudaFree(d_grad_weights_history_));
+    if (d_grad_biases_history_ != nullptr)
+        checkCudaErrors(cudaFree(d_grad_biases_history_));
 
     if (d_weights_ != nullptr) checkCudaErrors(cudaFree(d_weights_));
     if (d_biases_ != nullptr) checkCudaErrors(cudaFree(d_biases_));
@@ -83,24 +87,26 @@ void Network::Forward() {
     for (auto layer : layerGraph_.layers_) {
         layer->Forward();
 
-#if (DEBUG_FORWARD)
-        std::cout << "[[Forward ]][[ " << std::setw(7) << layer->GetName()
-                  << " ]]\t(" << layer->input_.GetChannels() << ", "
-                  << layer->input_.GetHeight() << ", "
-                  << layer->input_.GetWidth() << ")\t";
-#endif
-
-#if (DEBUG_FORWARD)
-        std::cout << "--> (" << layer->output_.GetChannels() << ", "
-                  << layer->output_.GetHeight() << ", "
-                  << layer->output_.GetWidth() << ")\n";
-        checkCudaErrors(cudaDeviceSynchronize());
-#endif
+        // Debug
+        // std::cout << "[[Forward ]][[ " << std::setw(7) << layer->GetName()
+        //           << " ]]\t(" << layer->input_.GetChannels() << ", "
+        //           << layer->input_.GetHeight() << ", "
+        //           << layer->input_.GetWidth() << ")\t";
+        // std::cout << "--> (" << layer->output_.GetChannels() << ", "
+        //           << layer->output_.GetHeight() << ", "
+        //           << layer->output_.GetWidth() << ")\n";
+        // checkCudaErrors(cudaDeviceSynchronize());
     }
 }
 
 void Network::Backward(BlobPointer<float> const &labels) {
     if (phase_ == WorkloadType::inference) return;
+    // Zero grad, some nodes have more than 1 output
+    InitiateZeros<<<(length_features_ + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
+                    BLOCK_DIM_1D>>>((float *)d_grad_features_,
+                                    length_features_);
+    // checkCudaErrors(
+    //     cudaMemset(d_grad_features_, 0, sizeof(float) * length_features_));
 
     // back propagation.. update weights internally.....
     for (auto layer = layerGraph_.layers_.rbegin();
@@ -126,21 +132,42 @@ void Network::Backward(BlobPointer<float> const &labels) {
     }
 }
 
-void Network::Update(float const learning_rate) {
+void Network::Update(float const learning_rate, float const momentum,
+                     float const weightDecay) {
     if (phase_ == WorkloadType::inference) return;
 
 #if (DEBUG_UPDATE)
     std::cout << "Start update.. lr = " << learning_rate << "\n";
 #endif
 
-    float eps = -1.f * learning_rate;
+    // Allocate memo
+
+    float eta = -1.f * learning_rate;
+
+    if (weightDecay > 0) {
+        // dw = dw+weightDecay*w
+        checkCublasErrors(cublasSaxpy(cuda_.cublas(), length_weights_,
+                                      &weightDecay, d_weights_, 1,
+                                      d_grad_weights_, 1));
+    }
+
+    if (momentum > 0) {
+        // dw_t = momentum*dw_{t-1} + dw_t
+        checkCublasErrors(cublasSaxpy(cuda_.cublas(), length_weights_,
+                                      &momentum, d_grad_weights_history_, 1,
+                                      d_grad_weights_, 1));
+        // db_t = momentum*db_{t-1} + db_t
+        checkCublasErrors(cublasSaxpy(cuda_.cublas(), length_biases_, &momentum,
+                                      d_grad_biases_history_, 1, d_grad_biases_,
+                                      1));
+    }
 
     // w = w + eps * dw
-    checkCublasErrors(cublasSaxpy(cuda_.cublas(), length_weights_, &eps,
+    checkCublasErrors(cublasSaxpy(cuda_.cublas(), length_weights_, &eta,
                                   d_grad_weights_, 1, d_weights_, 1));
 
     // b = b + eps * db
-    checkCublasErrors(cublasSaxpy(cuda_.cublas(), length_biases_, &eps,
+    checkCublasErrors(cublasSaxpy(cuda_.cublas(), length_biases_, &eta,
                                   d_grad_biases_, 1, d_biases_, 1));
 }
 
@@ -229,7 +256,8 @@ void Network::AddLayers() {
 }
 
 void Network::Train(const Dataset<dataType> *datasetPtr,
-                    float const learning_rate) {
+                    float const learning_rate, float const momentum = 0,
+                    float const weightDecay = 0) {
     std::vector<int> rand_perm(datasetPtr->Length());
     for (size_t i = 0; i < datasetPtr->Length(); i++) rand_perm[i] = i;
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -267,7 +295,7 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
 
         this->Forward();
         this->Backward(train_labels_ptr);
-        this->Update(learning_rate);
+        this->Update(learning_rate, momentum, weightDecay);
 
         for (int i = 0; i < batch_size_train; i++) {
             labels[i * 1000 + datasetPtr->GetLabel(
@@ -376,6 +404,8 @@ void Network::AllocateMemoryForFeatures() {
     checkCudaErrors(
         cudaMalloc((void **)&d_grad_features_, sizeof(float) * length_max));
 
+    length_features_ = length_max;
+
     float *d_ptr_feature = d_features_;
     float *d_ptr_grad_feature = d_grad_features_;
 
@@ -428,6 +458,10 @@ void Network::InitWeights() {
             checkCudaErrors(cudaFree(d_grad_weights_));
         if (d_grad_biases_ != nullptr)
             checkCudaErrors(cudaFree(d_grad_biases_));
+        if (d_grad_weights_history_ != nullptr)
+            checkCudaErrors(cudaFree(d_grad_weights_history_));
+        if (d_grad_biases_history_ != nullptr)
+            checkCudaErrors(cudaFree(d_grad_biases_history_));
 
         std::vector<std::array<int, 4>> shape_of_weights, shape_of_biases;
         shape_of_weights.reserve(layerGraph_.layers_.size());
@@ -487,6 +521,21 @@ void Network::InitWeights() {
         checkCudaErrors(cudaMalloc((void **)&d_grad_biases_,
                                    sizeof(float) * length_biases));
 
+        checkCudaErrors(cudaMalloc((void **)&d_grad_weights_history_,
+                                   sizeof(float) * length_weights));
+        InitiateZeros<<<(length_weights + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
+                        BLOCK_DIM_1D>>>((float *)d_grad_weights_history_,
+                                        length_weights);
+        // checkCudaErrors(cudaMemset(d_grad_weights_history_, 0,
+        //                            sizeof(float) * length_weights));
+        checkCudaErrors(cudaMalloc((void **)&d_grad_biases_history_,
+                                   sizeof(float) * length_biases));
+        InitiateZeros<<<(length_biases + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
+                        BLOCK_DIM_1D>>>((float *)d_grad_biases_history_,
+                                        length_biases);
+        // checkCudaErrors(cudaMemset(d_grad_biases_history_, 0,
+        //                            sizeof(float) * length_biases));
+
         d_ptr_grad_weights = d_grad_weights_;
         d_ptr_grad_biases = d_grad_biases_;
 
@@ -504,9 +553,25 @@ void Network::InitWeights() {
             i++;
         }
     } else {
-        checkCudaErrors(
-            cudaMemset(d_grad_weights_, 0, sizeof(float) * length_weights_));
-        checkCudaErrors(
-            cudaMemset(d_grad_biases_, 0, sizeof(float) * length_biases_));
+        InitiateZeros<<<(length_weights_ + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
+                        BLOCK_DIM_1D>>>((float *)d_grad_weights_,
+                                        length_weights_);
+        // checkCudaErrors(
+        //     cudaMemset(d_grad_weights_, 0, sizeof(float) * length_weights_));
+        InitiateZeros<<<(length_biases_ + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
+                        BLOCK_DIM_1D>>>((float *)d_grad_biases_,
+                                        length_biases_);
+        // checkCudaErrors(
+        //     cudaMemset(d_grad_biases_, 0, sizeof(float) * length_biases_));
+        InitiateZeros<<<(length_weights_ + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
+                        BLOCK_DIM_1D>>>((float *)d_grad_weights_history_,
+                                        length_weights_);
+        // checkCudaErrors(cudaMemset(d_grad_weights_history_, 0,
+        //                            sizeof(float) * length_weights_));
+        InitiateZeros<<<(length_biases_ + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
+                        BLOCK_DIM_1D>>>((float *)d_grad_biases_history_,
+                                        length_biases_);
+        // checkCudaErrors(cudaMemset(d_grad_biases_history_, 0,
+        //                            sizeof(float) * length_biases_));
     }
 }

@@ -39,7 +39,8 @@ class Network {
 
     virtual void AddLayers();
     void SetWorkloadType(WorkloadType const &in);
-    void Train(const Dataset<dataType> *datasetPtr, float const learning_rate);
+    void Train(const Dataset<dataType> *datasetPtr, float const learning_rate,
+               float const momentum, float const weightDecay);
 
     void Predict(const Dataset<dataType> *datasetPtr);
 
@@ -52,7 +53,8 @@ class Network {
     void Forward();
     void Backward(BlobPointer<float> const &labels);
 
-    void Update(float const learning_rate = 0.02f);
+    void Update(float const learning_rate, float const momentum,
+                float const weightDecay);
 
     int ObtainPredictionAccuracy(std::vector<label_t> const &labels,
                                  std::vector<int> &confusion_matrix);
@@ -63,6 +65,10 @@ class Network {
 
     float *d_grad_weights_{nullptr};
     float *d_grad_biases_{nullptr};
+
+    // for momentum-SGD
+    float *d_grad_weights_history_{nullptr};
+    float *d_grad_biases_history_{nullptr};
 
     // the memory for weights and biases
     float *d_weights_{nullptr};
@@ -77,5 +83,5 @@ class Network {
     CudaContext cuda_;
 
     WorkloadType phase_{WorkloadType::inference};
-    size_t length_weights_{}, length_biases_{};
+    size_t length_weights_{}, length_biases_{}, length_features_{};
 };

@@ -94,7 +94,7 @@ void Fully_connected::Backward(BlobPointer<float> const &labels) {
         cublasSgemm(cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_N, input_shape_,
                     batch_size, output_shape_, &cuda_->one, weights_.CudaPtr(),
                     input_shape_, grad_output_.CudaPtr(), output_shape_,
-                    &cuda_->zero, grad_input_.CudaPtr(), input_shape_);
+                    &cuda_->one, grad_input_.CudaPtr(), input_shape_);
 
 #if (DEBUG_DENSE & 0x02)
     std::cout << name_ << "[BACKWARD]" << std::endl;

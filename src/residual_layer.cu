@@ -23,14 +23,17 @@ void Residual::DescriptorsAndWorkSpace() {
 }
 
 void Residual::Forward() {
-    checkCudaErrors(
-        cudaMemset(output_.CudaPtr(), 0, sizeof(float) * output_.LengthNchw()));
+    InitiateZeros<<<(output_.LengthNchw() + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
+                    BLOCK_DIM_1D>>>(output_.CudaPtr(), output_.LengthNchw());
+    // checkCudaErrors(
+    //     cudaMemset(output_.CudaPtr(), 0, sizeof(float) *
+    //     output_.LengthNchw()));
     cudnnAddTensor(
         cuda_->cudnn(),  // cudnnHandle_t                     handle,
         &cuda_->one,     // const void                       *alpha,
         inputLayer1_->GetOutputDesc(),  // const cudnnTensorDescriptor_t aDesc,
         inputLayer1_->GetOutput().CudaPtr(),  // const void *A,
-        &cuda_->zero,      // const void                       *beta,
+        &cuda_->one,       // const void                       *beta,
         output_desc_,      // const cudnnTensorDescriptor_t     cDesc,
         output_.CudaPtr()  // void                             *C
     );
@@ -39,7 +42,7 @@ void Residual::Forward() {
         &cuda_->one,     // const void                       *alpha,
         inputLayer2_->GetOutputDesc(),  // const cudnnTensorDescriptor_t aDesc,
         inputLayer2_->GetOutput().CudaPtr(),  // const void *A,
-        &cuda_->zero,      // const void                       *beta,
+        &cuda_->one,       // const void                       *beta,
         output_desc_,      // const cudnnTensorDescriptor_t     cDesc,
         output_.CudaPtr()  // void                             *C
     );

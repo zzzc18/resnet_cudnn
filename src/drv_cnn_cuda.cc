@@ -2,6 +2,7 @@
  * \file drv_cnn_cuda.cc
  */
 
+#include <cmath>
 #include <iostream>
 
 #include "ImageNetParser/ImageNetParser.h"
@@ -15,17 +16,22 @@ int main(int argc, char *argv[]) {
     int batch_size_train = 64;
 
     float learning_rate = 0.01 * sqrt((float)batch_size_train);
+    float learning_rate_lower_bound = 1E-5;
+    float momentum = 0.9;
+    float weightDecay = 0;
+    // float weightDecay = 1.0 / 32768;
 
     int batch_size_test = 64;
 
-    Network net;
-    // ResNet net(18);
+    // Network net;
+    ResNet net(18);
     net.AddLayers();
 
     const int epoch = 100;
     for (int i = 0; i < epoch; i++) {
         std::cout << "running at epoch: " << i << "\n";
-        std::cout << "learning_rate: " << learning_rate << "\n";
+        std::cout << "learning_rate: " << std::fixed << std::setprecision(5)
+                  << learning_rate << "\n";
         net.SetWorkloadType(WorkloadType::training);
         net.SetBatchSize(batch_size_train);
         net.AllocateMemoryForFeatures();
@@ -33,7 +39,7 @@ int main(int argc, char *argv[]) {
         net.DescriptorsAndWorkspace();
         Timer t;
         Log("loss.log", "INFO", "Train");
-        net.Train(&trainDataset, learning_rate);
+        net.Train(&trainDataset, learning_rate, momentum, weightDecay);
 
         t.PrintDiff("训练时间...");
 
@@ -45,7 +51,8 @@ int main(int argc, char *argv[]) {
         net.Predict(&valDataset);
 
         t.PrintDiff("预测时间...");
-        // learning_rate *= 0.85;
+        learning_rate *= 0.95;
+        learning_rate = std::max(learning_rate_lower_bound, learning_rate);
         std::cout << "\n";
     }
 

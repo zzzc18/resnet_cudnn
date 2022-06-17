@@ -10,6 +10,8 @@
 
 enum class WorkloadType { training, inference };
 
+__global__ void InitiateZeros(float *d_one_vec, size_t length);
+
 class Layer {
    public:
     Layer(){};

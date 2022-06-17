@@ -124,12 +124,14 @@ void Conv2D::Backward(BlobPointer<float> const &labels) {
         &cuda_->zero, filter_desc_, grad_weights_.CudaPtr()));
 
     // gradients of input data
-    if (!gradient_stop_)
+    if (!gradient_stop_) {
+        // for multiple nodes have one
         checkCudnnErrors(cudnnConvolutionBackwardData(
             cuda_->cudnn(), &cuda_->one, filter_desc_, weights_.CudaPtr(),
             output_desc_, grad_output_.CudaPtr(), conv_desc_,
             conv_backward_data_algo_, d_workspace_, workspace_shape_,
-            &cuda_->zero, input_desc_, grad_input_.CudaPtr()));
+            &cuda_->one, input_desc_, grad_input_.CudaPtr()));
+    }
 
 #if (DEBUG_CONV & 0x02)
     std::cout << name_ << "[BACKWARD]\n";

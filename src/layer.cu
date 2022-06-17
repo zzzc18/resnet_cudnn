@@ -6,6 +6,12 @@
 
 #include "layer.h"
 
+__global__ void InitiateZeros(float *d_one_vec, size_t length) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= length) return;
+    d_one_vec[i] = 0.f;
+}
+
 void Layer::InitiateWeightsAndBiases() {
     if (weights_.CudaPtr() == nullptr || biases_.CudaPtr() == nullptr) return;
 

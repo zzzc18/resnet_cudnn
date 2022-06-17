@@ -51,7 +51,7 @@ if __name__ == "__main__":
     model = torchvision.models.resnet18(pretrained=False)
     # model = torchvision.models.alexnet(pretrained=False)
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=0.08)
+        model.parameters(), lr=0.08, momentum=0.9)
     # optimizer = torch.optim.SGD(
     #     model.parameters(), lr=0.08, momentum=0.875, weight_decay=1.0/32768)
     # optimizer = torch.optim.Adam(model.parameters(), lr=3E-4)

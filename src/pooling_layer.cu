@@ -36,7 +36,7 @@ void Pooling::Backward(BlobPointer<float> const &labels) {
     checkCudnnErrors(cudnnPoolingBackward(
         cuda_->cudnn(), pool_desc_, &cuda_->one, output_desc_,
         output_.CudaPtr(), output_desc_, grad_output_.CudaPtr(), input_desc_,
-        input_.CudaPtr(), &cuda_->zero, input_desc_, grad_input_.CudaPtr()));
+        input_.CudaPtr(), &cuda_->one, input_desc_, grad_input_.CudaPtr()));
 
 #if (DEBUG_POOLING & 0x02)
     std::cout << name_ << "[BACKWARD]" << std::endl;
