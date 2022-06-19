@@ -7,13 +7,13 @@
 
 #include "layer.h"
 
-class Activation : public Layer {
+class InplaceReLU : public Layer {
    public:
-    Activation(std::string const &name,
-               cudnnActivationMode_t const &mode = CUDNN_ACTIVATION_RELU,
-               float const coef = 5.f) {
+    InplaceReLU(std::string const &name,
+                cudnnActivationMode_t const &mode = CUDNN_ACTIVATION_RELU,
+                float const coef = 5.f) {
         SetName(name);
-        layerType_ = LayerType::Activation;
+        layerType_ = LayerType::InplaceReLU;
         mode_ = mode;
 
         cudnnCreateActivationDescriptor(&act_desc_);
@@ -21,7 +21,7 @@ class Activation : public Layer {
                                      coef);
     }
 
-    ~Activation() { cudnnDestroyActivationDescriptor(act_desc_); }
+    ~InplaceReLU() { cudnnDestroyActivationDescriptor(act_desc_); }
 
     virtual void InitFeatureShape() override;
     virtual void InitWeightsShape(

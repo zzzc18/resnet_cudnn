@@ -51,6 +51,7 @@ void Batchnorm2D::AllocateBatchnorm2D() {
         checkCudaErrors(cudaMalloc((void **)&resultSaveInvVariance_,
                                    sizeof(float) * input_.GetChannels()));
     }
+    checkCudaErrors(cudaDeviceSynchronize());
 }
 
 void Batchnorm2D::InitFeatureShape() { out_shape_ = in_shape_; }

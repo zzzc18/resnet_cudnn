@@ -53,6 +53,11 @@ void Conv2D::AllocateDnnWorkspace() {
 
     if (workspace_shape_ > 0) {
         if (d_workspace_ != nullptr) checkCudaErrors(cudaFree(d_workspace_));
+#ifdef ZDEBUG
+        std::cout << this->GetName()
+                  << "::d_workspace_=" << workspace_shape_ / 1024 / 1024
+                  << "MB\n";
+#endif
         checkCudaErrors(cudaMalloc((void **)&d_workspace_, workspace_shape_));
     }
 }

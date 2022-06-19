@@ -21,12 +21,17 @@ class ResNet : public Network {
     ~ResNet() {}
 
     virtual void AddLayers() override;
-    void AddBottleneckBlock();
     Layer *AddBasicBlock(std::string blockName, Layer *lastLayer, int planes,
                          int stride = 1,
                          std::pair<Layer *, Layer *> downsampleLayer =
                              std::pair<Layer *, Layer *>{nullptr, nullptr},
                          int groups = 1, int baseWidth = 64, int dilation = 1);
+    Layer *AddBottleneckBlock(std::string blockName, Layer *lastLayer,
+                              int planes, int stride = 1,
+                              std::pair<Layer *, Layer *> downsampleLayer =
+                                  std::pair<Layer *, Layer *>{nullptr, nullptr},
+                              int groups = 1, int baseWidth = 64,
+                              int dilation = 1);
     Layer *MakeLayer(std::string layerName, Layer *lastLayer, int planes,
                      int blocks, int stride = 1, bool dilate = false);
 

@@ -35,12 +35,10 @@ Layer *ResNet::AddBasicBlock(std::string blockName, Layer *lastLayer,
     Layer *indentity = lastLayer;
     Layer *conv1 = new Conv2D(blockName + "conv1", planes, 3, false, stride, 1);
     Layer *bn1 = new Batchnorm2D(blockName + "bn1");
-    Layer *relu1 =
-        new Activation(blockName + "relu1", CUDNN_ACTIVATION_RELU, RELU_COEF);
+    Layer *relu1 = new Activation(blockName + "relu1");
     Layer *conv2 = new Conv2D(blockName + "conv2", planes, 3, false, 1, 1);
     Layer *bn2 = new Batchnorm2D(blockName + "bn2", true);
-    Layer *relu2 =
-        new Activation(blockName + "relu2", CUDNN_ACTIVATION_RELU, RELU_COEF);
+    Layer *relu2 = new Activation(blockName + "relu2");
 
     if (downsampleLayer.first != nullptr) {
         layerGraph_.AddEdge(lastLayer, downsampleLayer.first);
@@ -62,6 +60,48 @@ Layer *ResNet::AddBasicBlock(std::string blockName, Layer *lastLayer,
     return relu2;
 }
 
+Layer *ResNet::AddBottleneckBlock(std::string blockName, Layer *lastLayer,
+                                  int planes, int stride,
+                                  std::pair<Layer *, Layer *> downsampleLayer,
+                                  int groups, int baseWidth, int dilation) {
+    int width = planes * (baseWidth / 64) * groups;
+
+    Layer *indentity = lastLayer;
+    Layer *conv1 = new Conv2D(blockName + "conv1", width, 1, false);
+    Layer *bn1 = new Batchnorm2D(blockName + "bn1");
+    Layer *relu1 = new Activation(blockName + "relu1");
+    Layer *conv2 = new Conv2D(blockName + "conv2", width, 3, false, stride,
+                              dilation, dilation);
+    Layer *bn2 = new Batchnorm2D(blockName + "bn2");
+    Layer *relu2 = new Activation(blockName + "relu2");
+    Layer *conv3 =
+        new Conv2D(blockName + "conv3", width * BOOTLENECK_EXPANSION, 1, false);
+    Layer *bn3 = new Batchnorm2D(blockName + "bn3", true);
+    Layer *relu3 = new Activation(blockName + "relu3");
+
+    if (downsampleLayer.first != nullptr) {
+        layerGraph_.AddEdge(lastLayer, downsampleLayer.first);
+        layerGraph_.AddEdge(downsampleLayer.first, downsampleLayer.second);
+        indentity = downsampleLayer.second;
+    }
+
+    Layer *res = new Residual(blockName + "res", bn3, indentity);
+
+    layerGraph_.AddEdge(lastLayer, conv1);
+    layerGraph_.AddEdge(conv1, bn1);
+    layerGraph_.AddEdge(bn1, relu1);
+    layerGraph_.AddEdge(relu1, conv2);
+    layerGraph_.AddEdge(conv2, bn2);
+    layerGraph_.AddEdge(bn2, relu2);
+    layerGraph_.AddEdge(relu2, conv3);
+    layerGraph_.AddEdge(conv3, bn3);
+
+    layerGraph_.AddEdge(bn3, res);
+    layerGraph_.AddEdge(indentity, res);
+    layerGraph_.AddEdge(res, relu3);
+    return relu3;
+}
+
 Layer *ResNet::MakeLayer(std::string layerName, Layer *lastLayer, int planes,
                          int blocks, int stride, bool dilate) {
     int previousDilation = dilation_;
@@ -79,14 +119,27 @@ Layer *ResNet::MakeLayer(std::string layerName, Layer *lastLayer, int planes,
             new Batchnorm2D(layerName + "block1-" + "bn_ds"));
     }
 
-    Layer *newLayer = this->AddBasicBlock(
-        layerName + "block1-", lastLayer, planes, stride, downsampleLayer,
-        groups_, baseWidth_, previousDilation);
-    for (int i = 1; i < blocks; i++) {
-        newLayer = this->AddBasicBlock(
-            layerName + "block" + std::to_string(i + 1) + "-", newLayer, planes,
-            1, std::pair<Layer *, Layer *>{nullptr, nullptr}, groups_,
-            baseWidth_, dilation_);
+    Layer *newLayer{nullptr};
+    if (blockType_ == BASIC_BLOCK) {
+        newLayer = this->AddBasicBlock(layerName + "block1-", lastLayer, planes,
+                                       stride, downsampleLayer, groups_,
+                                       baseWidth_, previousDilation);
+        for (int i = 1; i < blocks; i++) {
+            newLayer = this->AddBasicBlock(
+                layerName + "block" + std::to_string(i + 1) + "-", newLayer,
+                planes, 1, std::pair<Layer *, Layer *>{nullptr, nullptr},
+                groups_, baseWidth_, dilation_);
+        }
+    } else {
+        newLayer = this->AddBottleneckBlock(
+            layerName + "block1-", lastLayer, planes, stride, downsampleLayer,
+            groups_, baseWidth_, previousDilation);
+        for (int i = 1; i < blocks; i++) {
+            newLayer = this->AddBottleneckBlock(
+                layerName + "block" + std::to_string(i + 1) + "-", newLayer,
+                planes, 1, std::pair<Layer *, Layer *>{nullptr, nullptr},
+                groups_, baseWidth_, dilation_);
+        }
     }
     return newLayer;
 }
@@ -98,7 +151,7 @@ void ResNet::AddLayers() {
     Layer *conv1 = new Conv2D("conv1", 64, 7, false, 2, 3);
     conv1->SetGradientStop();
     Layer *bn1 = new Batchnorm2D("bn1");
-    Layer *relu1 = new Activation("relu1", CUDNN_ACTIVATION_RELU, 2);
+    Layer *relu1 = new Activation("relu1");
     Layer *pool1 = new Pooling("pool1", 3, 1, 2, CUDNN_POOLING_MAX);
 
     layerGraph_.AddEdge(conv1, bn1);

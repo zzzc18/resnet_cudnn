@@ -11,6 +11,7 @@ from model import TestModel
 from tqdm import tqdm
 import torchmetrics
 from torch.utils.tensorboard import SummaryWriter
+from torchsummary import summary
 
 
 class Metric():
@@ -48,10 +49,10 @@ if __name__ == "__main__":
         dataset=val_dataset, batch_size=64, shuffle=False, drop_last=False, num_workers=12)
 
     # model = TestModel()
-    model = torchvision.models.resnet18(pretrained=False)
+    model = torchvision.models.resnet50(pretrained=False)
     # model = torchvision.models.alexnet(pretrained=False)
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=0.08, momentum=0.9)
+        model.parameters(), lr=0.08, momentum=0.875, weight_decay=1.0/32768)
     # optimizer = torch.optim.SGD(
     #     model.parameters(), lr=0.08, momentum=0.875, weight_decay=1.0/32768)
     # optimizer = torch.optim.Adam(model.parameters(), lr=3E-4)
@@ -63,6 +64,8 @@ if __name__ == "__main__":
 
     total_epoch = 25
     step = 0
+    summary(model, (3, 224, 224))
+    exit(0)
     for epoch in range(total_epoch):
         print(f"Running at Epoch [{epoch+1}/{total_epoch}]")
         model.train()

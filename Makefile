@@ -17,7 +17,8 @@ NVCC_FLAGS= --gpu-architecture=sm_86 --resource-usage -Xcompiler -rdynamic -Xcom
 # LIBRARIES += -L/usr/local/cuda/lib64 -lcublas -lcudnn  -lcurand #-lgomp -lnvToolsExt
 LIBRARIES += -L$(CUDA_PATH)/lib64 -lcublas -lcudnn  -lcurand #-lgomp -lnvToolsExt
 LIBRARIES += -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs
-LIBRARIES += -DZDEBUG
+LIBRARIES += -DLOSS_LOG
+# LIBRARIES += -DZDEBUG
 ALL_CCFLAGS += -m64 -O2 -std=c++17 $(NVCC_FLAGS) $(INCLUDES) $(LIBRARIES)
 
 SRC_DIR = src
@@ -37,6 +38,7 @@ ${TARGET}: $(OBJ_DIR)/drv_cnn_cuda.o $(OBJ_DIR)/layer.o\
 	$(OBJ_DIR)/batchnorm_layer.o\
 	$(OBJ_DIR)/residual_layer.o\
 	$(OBJ_DIR)/resnet.o\
+	$(OBJ_DIR)/inplace_relu.o\
 	$(OBJ_DIR)/network.o
 	@echo "------------- Buliding ${TARGET} ------------"
 	$(NVCC)  $(ALL_CCFLAGS) $(GENCODE_FLAGS) $^ -o $@

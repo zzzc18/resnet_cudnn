@@ -9,7 +9,10 @@
 
 class Softmax : public Layer {
    public:
-    Softmax(std::string name) { SetName(name); }
+    Softmax(std::string name) {
+        SetName(name);
+        layerType_ = LayerType::Softmax;
+    }
     ~Softmax() {}
 
     virtual void InitFeatureShape() override;

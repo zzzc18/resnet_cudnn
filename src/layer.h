@@ -10,6 +10,17 @@
 
 enum class WorkloadType { training, inference };
 
+enum class LayerType {
+    Conv2D,
+    Batchnorm2D,
+    Activation,
+    InplaceReLU,
+    Residual,
+    Pooling,
+    Fully_connected,
+    Softmax
+};
+
 __global__ void InitiateZeros(float *d_one_vec, size_t length);
 
 class Layer {
@@ -29,6 +40,8 @@ class Layer {
     cudnnTensorDescriptor_t &GetOutputDesc() { return output_desc_; }
     BlobPointer<float> &GetOutput() { return output_; }
     BlobPointer<float> &GetGradOutput() { return grad_output_; }
+
+    LayerType GetLayerType() { return layerType_; };
 
    protected:
     virtual void Forward() = 0;
@@ -71,6 +84,8 @@ class Layer {
 
     // Permit Network to access the protected members of Layer
     friend class Network;
+
+    LayerType layerType_;
 
    private:
     std::string name_;

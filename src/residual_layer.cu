@@ -10,9 +10,8 @@ void Residual::InitFeatureShape() { out_shape_ = in_shape_; }
 
 void Residual::InitWeightsShape(std::vector<std::array<int, 4>> &w_l,
                                 std::vector<std::array<int, 4>> &b_l) {
-    // nothing actually
-    w_l.emplace_back(std::array<int, 4>{1, 1, 1, 1});
-    b_l.emplace_back(std::array<int, 4>{1, 1, 1, 1});
+    w_l.emplace_back(std::array<int, 4>{0, 0, 0, 0});
+    b_l.emplace_back(std::array<int, 4>{0, 0, 0, 0});
     return;
 }
 
@@ -25,6 +24,7 @@ void Residual::DescriptorsAndWorkSpace() {
 void Residual::Forward() {
     InitiateZeros<<<(output_.LengthNchw() + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
                     BLOCK_DIM_1D>>>(output_.CudaPtr(), output_.LengthNchw());
+    checkCudaErrors(cudaDeviceSynchronize());
     // checkCudaErrors(
     //     cudaMemset(output_.CudaPtr(), 0, sizeof(float) *
     //     output_.LengthNchw()));

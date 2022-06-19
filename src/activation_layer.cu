@@ -44,6 +44,5 @@ void Activation::Backward(BlobPointer<float> const &labels) {
     grad_input_.print(name_ + "::dx", true);
     grad_output_.print(name_ + "::dy", true);
 #endif
-
     return;
 }

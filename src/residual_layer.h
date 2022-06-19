@@ -12,6 +12,7 @@ class Residual : public Layer {
     Residual(std::string const &name, Layer *inputLayer1, Layer *inputLayer2)
         : inputLayer1_(inputLayer1), inputLayer2_(inputLayer2) {
         SetName(name);
+        layerType_ = LayerType::Residual;
     }
 
     ~Residual() {}

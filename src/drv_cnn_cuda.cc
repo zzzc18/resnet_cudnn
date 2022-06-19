@@ -13,18 +13,18 @@ int main(int argc, char *argv[]) {
     ImageNetDataset<dataType> trainDataset("ImageNet", "train");
     ImageNetDataset<dataType> valDataset("ImageNet", "val");
 
-    int batch_size_train = 64;
+    int batch_size_train = 32;
+    int batch_size_test = 32;
 
-    float learning_rate = 0.01 * sqrt((float)batch_size_train);
-    float learning_rate_lower_bound = 1E-5;
-    float momentum = 0.9;
+    // float learning_rate = 0.01 * sqrt((float)batch_size_train);
+    float learning_rate = 0.04;
+    float learning_rate_lower_bound = 1E-4;
+    float momentum = 0.875;
     float weightDecay = 0;
     // float weightDecay = 1.0 / 32768;
 
-    int batch_size_test = 64;
-
     // Network net;
-    ResNet net(18);
+    ResNet net(50);
     net.AddLayers();
 
     const int epoch = 100;
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
         net.InitWeights();
         net.DescriptorsAndWorkspace();
         Timer t;
-        Log("loss.log", "INFO", "Train");
+        Log("loss.log", "INFO", "Train@Epoch " + std::to_string(i));
         net.Train(&trainDataset, learning_rate, momentum, weightDecay);
 
         t.PrintDiff("训练时间...");

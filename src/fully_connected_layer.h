@@ -13,6 +13,7 @@ class Fully_connected : public Layer {
                     bool useBias = true)
         : useBias_(useBias) {
         SetName(name);
+        layerType_ = LayerType::Fully_connected;
         output_shape_ = output_size;
     }
 

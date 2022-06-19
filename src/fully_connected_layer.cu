@@ -30,7 +30,6 @@ void Fully_connected::InitWeightsShape(std::vector<std::array<int, 4>> &w_l,
                                        std::vector<std::array<int, 4>> &b_l) {
     // initialize weight, bias, and output
     input_shape_ = in_shape_[1];
-
     std::array<int, 4> w{1, 1, input_shape_, output_shape_},
         b{1, 1, output_shape_, 1};
     w_l.emplace_back(w);
@@ -45,6 +44,11 @@ void Fully_connected::DescriptorsAndWorkSpace() {
     }
 
     int batch_size = input_.get_n();
+#ifdef ZDEBUG
+    std::cout << this->GetName()
+              << "::d_one_vec=" << sizeof(float) * batch_size / 1024 / 1024
+              << "MB\n";
+#endif
     checkCudaErrors(
         cudaMalloc((void **)&d_one_vec, sizeof(float) * batch_size));
     InitiateVecOnes<<<(batch_size + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,

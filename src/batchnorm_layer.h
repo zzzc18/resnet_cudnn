@@ -16,6 +16,7 @@ class Batchnorm2D : public Layer {
           exponentialAverageFactor_(exponentialAverageFactor),
           epsilon_(epsilon) {
         SetName(name);
+        layerType_ = LayerType::Batchnorm2D;
 
         checkCudnnErrors(cudnnCreateTensorDescriptor(&bnDesc_));
     }

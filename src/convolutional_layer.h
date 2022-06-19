@@ -19,10 +19,10 @@ class Conv2D : public Layer {
           dilation_(dilation),
           useBias_(useBias) {
         SetName(name);
+        layerType_ = LayerType::Conv2D;
+
         checkCudnnErrors(cudnnCreateFilterDescriptor(&filter_desc_));
-
         checkCudnnErrors(cudnnCreateConvolutionDescriptor(&conv_desc_));
-
         checkCudnnErrors(cudnnSetConvolution2dDescriptor(
             conv_desc_, padding_, padding_, stride_, stride_, dilation_,
             dilation_, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));

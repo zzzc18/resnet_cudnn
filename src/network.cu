@@ -14,6 +14,7 @@ void LayerGraph::AddEdge(Layer *from, Layer *to) {
     layerCollection_.insert(from);
     layerCollection_.insert(to);
     edgeGraph_[from].emplace_back(to);
+    invEdgeGraph_[to].emplace_back(from);
 }
 
 void LayerGraph::TopoSort() {
@@ -102,9 +103,10 @@ void Network::Forward() {
 void Network::Backward(BlobPointer<float> const &labels) {
     if (phase_ == WorkloadType::inference) return;
     // Zero grad, some nodes have more than 1 output
-    InitiateZeros<<<(length_features_ + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
+    InitiateZeros<<<(length_grad_features_ + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
                     BLOCK_DIM_1D>>>((float *)d_grad_features_,
-                                    length_features_);
+                                    length_grad_features_);
+    checkCudaErrors(cudaDeviceSynchronize());
     // checkCudaErrors(
     //     cudaMemset(d_grad_features_, 0, sizeof(float) * length_features_));
 
@@ -293,6 +295,7 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
         this->layerGraph_.layers_[0]->input_.ToDevice(samples);
         train_labels_ptr.ToDevice(labels);
 
+        // Log("loss.log", "DEBUG", std::to_string(step));
         this->Forward();
         this->Backward(train_labels_ptr);
         this->Update(learning_rate, momentum, weightDecay);
@@ -387,7 +390,8 @@ void Network::AllocateMemoryForFeatures() {
 
     /// 1. set the shape of the feature at each layer
     /// 2. get the total length of features among all layers
-    int length_max = shape[0] * shape[1] * shape[2] * shape[3];
+    length_grad_features_ = length_features_ =
+        shape[0] * shape[1] * shape[2] * shape[3];
 
     layerGraph_.layers_[0]->in_shape_ = shape;
     for (auto layer : layerGraph_.layers_) {
@@ -395,20 +399,32 @@ void Network::AllocateMemoryForFeatures() {
         for (auto nextLayer : layerGraph_.edgeGraph_[layer]) {
             nextLayer->in_shape_ = layer->out_shape_;
         }
-        length_max += layer->out_shape_[0] * layer->out_shape_[1] *
-                      layer->out_shape_[2] * layer->out_shape_[3];
+        int layer_length_feature = layer->out_shape_[0] * layer->out_shape_[1] *
+                                   layer->out_shape_[2] * layer->out_shape_[3];
+        length_features_ += layer_length_feature;
+#ifdef ZDEBUG
+        std::cout << layer->GetName() << "::length_features_="
+                  << sizeof(float) * layer_length_feature / 1024 / 1024
+                  << "MB\n";
+#endif
+        if (layer->GetLayerType() != LayerType::InplaceReLU) {
+            length_grad_features_ += layer_length_feature;
+        }
     }
 
+#ifdef ZDEBUG
+    std::cout << "::length_features_="
+              << sizeof(float) * length_features_ / 1024 / 1024 << "MB\n";
+    std::cout << "::length_grad_features_="
+              << sizeof(float) * length_grad_features_ / 1024 / 1024 << "MB\n";
+#endif
     checkCudaErrors(
-        cudaMalloc((void **)&d_features_, sizeof(float) * length_max));
-    checkCudaErrors(
-        cudaMalloc((void **)&d_grad_features_, sizeof(float) * length_max));
-
-    length_features_ = length_max;
+        cudaMalloc((void **)&d_features_, sizeof(float) * length_features_));
+    checkCudaErrors(cudaMalloc((void **)&d_grad_features_,
+                               sizeof(float) * length_grad_features_));
 
     float *d_ptr_feature = d_features_;
     float *d_ptr_grad_feature = d_grad_features_;
-
     layerGraph_.layers_[0]->input_.Initiate(layerGraph_.layers_[0]->in_shape_,
                                             d_ptr_feature);
     layerGraph_.layers_[0]->grad_input_.Initiate(
@@ -422,18 +438,30 @@ void Network::AllocateMemoryForFeatures() {
     for (auto layer : layerGraph_.layers_) {
         int out_length = layer->out_shape_[0] * layer->out_shape_[1] *
                          layer->out_shape_[2] * layer->out_shape_[3];
+
         layer->output_.Initiate(layer->out_shape_, d_ptr_feature);
         for (auto nextLayer : layerGraph_.edgeGraph_[layer]) {
             nextLayer->input_.Initiate(layer->out_shape_, d_ptr_feature);
         }
         d_ptr_feature += out_length;
 
-        layer->grad_output_.Initiate(layer->out_shape_, d_ptr_grad_feature);
-        for (auto nextLayer : layerGraph_.edgeGraph_[layer]) {
-            nextLayer->grad_input_.Initiate(layer->out_shape_,
-                                            d_ptr_grad_feature);
+        if (layer->GetLayerType() == LayerType::InplaceReLU) {
+            assert(layerGraph_.invEdgeGraph_[layer].size() == 1);
+            Layer *lastLayer = layerGraph_.invEdgeGraph_[layer].back();
+            layer->grad_output_.Initiate(layer->out_shape_,
+                                         lastLayer->grad_output_.CudaPtr());
+            for (auto nextLayer : layerGraph_.edgeGraph_[layer]) {
+                nextLayer->grad_input_.Initiate(layer->out_shape_,
+                                                layer->grad_output_.CudaPtr());
+            }
+        } else {
+            layer->grad_output_.Initiate(layer->out_shape_, d_ptr_grad_feature);
+            for (auto nextLayer : layerGraph_.edgeGraph_[layer]) {
+                nextLayer->grad_input_.Initiate(layer->out_shape_,
+                                                d_ptr_grad_feature);
+            }
+            d_ptr_grad_feature += out_length;
         }
-        d_ptr_grad_feature += out_length;
     }
     return;
 }
@@ -469,6 +497,24 @@ void Network::InitWeights() {
 
         for (auto layer : layerGraph_.layers_) {
             layer->InitWeightsShape(shape_of_weights, shape_of_biases);
+#ifdef ZDEBUG
+            std::cout << layer->GetName() << "::shape_of_weights="
+                      << sizeof(float) *
+                             (shape_of_weights.back()[0] *
+                              shape_of_weights.back()[1] *
+                              shape_of_weights.back()[2] *
+                              shape_of_weights.back()[3]) /
+                             1024 / 1024
+                      << "MB\n";
+            std::cout << layer->GetName() << "::shape_of_biases="
+                      << sizeof(float) *
+                             (shape_of_biases.back()[0] *
+                              shape_of_biases.back()[1] *
+                              shape_of_biases.back()[2] *
+                              shape_of_biases.back()[3]) /
+                             1024 / 1024
+                      << "MB\n";
+#endif
         }
 
         int length_weights = 0, length_biases = 0;
@@ -488,7 +534,11 @@ void Network::InitWeights() {
         length_weights_ = length_weights;
         length_biases_ = length_biases;
 
-        // weights and biases
+// weights and biases
+#ifdef ZDEBUG
+        std::cout << "::d_weights_="
+                  << sizeof(float) * length_weights / 1024 / 1024 << "MB\n";
+#endif
         checkCudaErrors(
             cudaMalloc((void **)&d_weights_, sizeof(float) * length_weights));
         checkCudaErrors(
@@ -574,4 +624,5 @@ void Network::InitWeights() {
         // checkCudaErrors(cudaMemset(d_grad_biases_history_, 0,
         //                            sizeof(float) * length_biases_));
     }
+    checkCudaErrors(cudaDeviceSynchronize());
 }

@@ -14,6 +14,7 @@
 #include "batchnorm_layer.h"
 #include "convolutional_layer.h"
 #include "fully_connected_layer.h"
+#include "inplace_relu.h"
 #include "pooling_layer.h"
 #include "residual_layer.h"
 #include "softmax_layer.h"
@@ -26,7 +27,7 @@ class LayerGraph {
 
     std::vector<Layer *> layers_;  // In topological
     std::set<Layer *> layerCollection_;
-    std::map<Layer *, std::vector<Layer *>> edgeGraph_;
+    std::map<Layer *, std::vector<Layer *>> edgeGraph_, invEdgeGraph_;
 };
 
 class Network {
@@ -83,5 +84,6 @@ class Network {
     CudaContext cuda_;
 
     WorkloadType phase_{WorkloadType::inference};
-    size_t length_weights_{}, length_biases_{}, length_features_{};
+    size_t length_weights_{}, length_biases_{}, length_features_{},
+        length_grad_features_{};
 };

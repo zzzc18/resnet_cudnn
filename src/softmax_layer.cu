@@ -36,6 +36,7 @@ void CrossEntropyLoss(BlobPointer<float> &output_,
     checkCudaErrors(cudaMemcpy(labelsCPU, labels.CudaPtr(),
                                labels.LengthNchw() * sizeof(float),
                                cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaDeviceSynchronize());
     output_.ToHost(output, length);
     checkCudaErrors(cudaDeviceSynchronize());
     CrossEntropyLoss(output_.get_n(), output, labelsCPU);
@@ -84,10 +85,9 @@ void Softmax::Forward() {
 }
 
 void Softmax::Backward(BlobPointer<float> const &labels) {
-#ifdef ZDEBUG
+#ifdef LOSS_LOG
     CrossEntropyLoss(output_, labels);
 #endif
-    checkCudaErrors(cudaDeviceSynchronize());
     checkCudaErrors(cudaMemcpyAsync(grad_input_.CudaPtr(), output_.CudaPtr(),
                                     output_.buf_size(),
                                     cudaMemcpyDeviceToDevice));
@@ -109,7 +109,7 @@ void Softmax::Backward(BlobPointer<float> const &labels) {
 
 int Softmax::ObtainPredictionAccuracy(std::vector<label_t> const &labels,
                                       std::vector<int> &confusion_matrix) {
-#ifdef ZDEBUG
+#ifdef LOSS_LOG
     CrossEntropyLoss(output_, labels);
 #endif
     int batch_size = output_.get_n();
