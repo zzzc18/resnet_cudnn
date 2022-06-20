@@ -23,23 +23,15 @@ void Batchnorm2D::AllocateBatchnorm2D() {
     if (resultRunningMean_ == nullptr) {
         checkCudaErrors(cudaMalloc((void **)&resultRunningMean_,
                                    sizeof(float) * input_.GetChannels()));
-        InitiateZeros<<<(input_.GetChannels() + BLOCK_DIM_1D - 1) /
-                            BLOCK_DIM_1D,
-                        BLOCK_DIM_1D>>>((float *)resultRunningMean_,
-                                        input_.GetChannels());
-        // checkCudaErrors(cudaMemset(resultRunningMean_, 0,
-        //                            sizeof(float) * input_.GetChannels()));
+        checkCudaErrors(cudaMemset(resultRunningMean_, 0,
+                                   sizeof(float) * input_.GetChannels()));
     }
 
     if (resultRunningVariance_ == nullptr) {
         checkCudaErrors(cudaMalloc((void **)&resultRunningVariance_,
                                    sizeof(float) * input_.GetChannels()));
-        InitiateZeros<<<(input_.GetChannels() + BLOCK_DIM_1D - 1) /
-                            BLOCK_DIM_1D,
-                        BLOCK_DIM_1D>>>((float *)resultRunningVariance_,
-                                        input_.GetChannels());
-        // checkCudaErrors(cudaMemset(resultRunningVariance_, 0,
-        //                            sizeof(float) * input_.GetChannels()));
+        checkCudaErrors(cudaMemset(resultRunningVariance_, 0,
+                                   sizeof(float) * input_.GetChannels()));
     }
 
     if (resultSaveMean_ == nullptr) {
@@ -124,15 +116,15 @@ void Batchnorm2D::Backward(BlobPointer<float> const &labels) {
         cuda_->cudnn(),           // cudnnHandle_t                    handle,
         CUDNN_BATCHNORM_SPATIAL,  // cudnnBatchNormMode_t             mode,
         &cuda_->one,              // const void                 *alphaDataDiff,
-        &cuda_->one,              // const void                 *betaDataDiff,
+        &cuda_->zero,             // const void                 *betaDataDiff,
         &cuda_->one,              // const void                 *alphaParamDiff,
         &cuda_->zero,             // const void                 *betaParamDiff,
         input_desc_,              // const cudnnTensorDescriptor_t    xDesc,
         input_.CudaPtr(),         // const void                      *x,
         output_desc_,             // const cudnnTensorDescriptor_t    dyDesc,
-        grad_output_.CudaPtr(),   // const void                      *dy,
+        output_.CudaPtr(),        // const void                      *dy,
         input_desc_,              // const cudnnTensorDescriptor_t    dxDesc,
-        grad_input_.CudaPtr(),    // void                            *dx,
+        d_temp_grad_features_,    // void                            *dx,
         bnDesc_,                  // const cudnnTensorDescriptor_t
                                   // bnScaleBiasDiffDesc,
         weights_.CudaPtr(),       // const void                      *bnScale,
@@ -142,5 +134,6 @@ void Batchnorm2D::Backward(BlobPointer<float> const &labels) {
         resultSaveMean_,          // const void                      *savedMean,
         resultSaveInvVariance_    // const void *savedInvVariance
         ));
+    this->BackwardCopy();
     return;
 }

@@ -3,10 +3,17 @@
  */
 #pragma once
 
+#include <map>
+#include <queue>
+#include <set>
+#include <vector>
+
 #include "blob.h"
 #include "cuda_context.h"
 #include "cuda_helper.h"
 #include "utilities_sc.h"
+
+const int IMAGENET_CLASSES = 10;
 
 enum class WorkloadType { training, inference };
 
@@ -16,12 +23,15 @@ enum class LayerType {
     Activation,
     InplaceReLU,
     Residual,
+    Split,
     Pooling,
     Fully_connected,
     Softmax
 };
 
 __global__ void InitiateZeros(float *d_one_vec, size_t length);
+
+class LayerGraph;
 
 class Layer {
    public:
@@ -38,8 +48,9 @@ class Layer {
     void SetGradientStop() { gradient_stop_ = true; }
 
     cudnnTensorDescriptor_t &GetOutputDesc() { return output_desc_; }
+    BlobPointer<float> &GetInput() { return input_; }
     BlobPointer<float> &GetOutput() { return output_; }
-    BlobPointer<float> &GetGradOutput() { return grad_output_; }
+    // BlobPointer<float> &GetGradOutput() { return grad_output_; }
 
     LayerType GetLayerType() { return layerType_; };
 
@@ -60,11 +71,11 @@ class Layer {
     void SetCudaContext(CudaContext *context) { cuda_ = context; }
     void SetWorkloadType(WorkloadType const &in) { phase_ = in; }
 
+    void BackwardCopy();
+
     // memory pointers
-    BlobPointer<float> input_;        // x
-    BlobPointer<float> output_;       // y
-    BlobPointer<float> grad_input_;   // dx
-    BlobPointer<float> grad_output_;  // dy
+    BlobPointer<float> input_;   // x
+    BlobPointer<float> output_;  // y
 
     BlobPointer<float> grad_weights_;  // dw
     BlobPointer<float> grad_biases_;   // db
@@ -86,10 +97,24 @@ class Layer {
     friend class Network;
 
     LayerType layerType_;
+    float *d_temp_grad_features_{nullptr};
+    float *d_retain_output_{nullptr};
+    bool afterSplitLayer_{false};
 
    private:
     std::string name_;
 
    protected:
     WorkloadType phase_{WorkloadType::inference};
+};
+
+class LayerGraph {
+   public:
+    LayerGraph() {}
+    void AddEdge(Layer *from, Layer *to);
+    void TopoSort();
+
+    std::vector<Layer *> layers_;  // In reversed inverse-topological
+    std::set<Layer *> layerCollection_;
+    std::map<Layer *, std::vector<Layer *>> edgeGraph_, invEdgeGraph_;
 };

@@ -2,6 +2,8 @@
  * \file activation_layer.cu
  */
 
+#include <cmath>
+
 #include "activation_layer.h"
 
 void Activation::InitFeatureShape() { out_shape_ = in_shape_; }
@@ -35,8 +37,9 @@ void Activation::Forward() {
 void Activation::Backward(BlobPointer<float> const &labels) {
     checkCudnnErrors(cudnnActivationBackward(
         cuda_->cudnn(), act_desc_, &cuda_->one, output_desc_, output_.CudaPtr(),
-        output_desc_, grad_output_.CudaPtr(), input_desc_, input_.CudaPtr(),
-        &cuda_->one, input_desc_, grad_input_.CudaPtr()));
+        output_desc_, output_.CudaPtr(), input_desc_, input_.CudaPtr(),
+        &cuda_->zero, input_desc_, d_temp_grad_features_));
+    this->BackwardCopy();
 #if (DEBUG_ACTIVATION & 0x02)
     std::cout << name_ << "[BACKWARD]\n";
     input_.print(name_ + "::input", true);

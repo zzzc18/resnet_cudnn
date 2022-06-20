@@ -3,11 +3,6 @@
  */
 #pragma once
 
-#include <map>
-#include <queue>
-#include <set>
-#include <vector>
-
 #include "Dataset/Dataset.h"
 #include "ImageNetParser/ImageNetParser.h"
 #include "activation_layer.h"
@@ -18,17 +13,6 @@
 #include "pooling_layer.h"
 #include "residual_layer.h"
 #include "softmax_layer.h"
-
-class LayerGraph {
-   public:
-    LayerGraph() {}
-    void AddEdge(Layer *from, Layer *to);
-    void TopoSort();
-
-    std::vector<Layer *> layers_;  // In topological
-    std::set<Layer *> layerCollection_;
-    std::map<Layer *, std::vector<Layer *>> edgeGraph_, invEdgeGraph_;
-};
 
 class Network {
    public:
@@ -62,7 +46,8 @@ class Network {
 
     // the temporal working space for training and predicting
     float *d_features_{nullptr};
-    float *d_grad_features_{nullptr};
+    // float *d_grad_features_{nullptr};
+    float *d_temp_grad_features_{nullptr};
 
     float *d_grad_weights_{nullptr};
     float *d_grad_biases_{nullptr};
@@ -84,6 +69,6 @@ class Network {
     CudaContext cuda_;
 
     WorkloadType phase_{WorkloadType::inference};
-    size_t length_weights_{}, length_biases_{}, length_features_{},
-        length_grad_features_{};
+    size_t length_weights_{}, length_biases_{}, length_features_{};
+    int max_layer_length_feature_;
 };

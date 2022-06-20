@@ -43,16 +43,18 @@ if __name__ == "__main__":
     train_dataset = ImageNetDataset("../ImageNet", "train", get_transform())
     val_dataset = ImageNetDataset("../ImageNet", "val", get_transform())
 
+    torch.backends.cudnn.enable = True
+    torch.backends.cudnn.benchmark = True
     train_dataloader = DataLoader(
         dataset=train_dataset, batch_size=64, shuffle=True, drop_last=True, num_workers=12)
     val_dataloader = DataLoader(
         dataset=val_dataset, batch_size=64, shuffle=False, drop_last=False, num_workers=12)
 
     # model = TestModel()
-    model = torchvision.models.resnet50(pretrained=False)
+    model = torchvision.models.resnet18(pretrained=False, num_classes=10)
     # model = torchvision.models.alexnet(pretrained=False)
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=0.08, momentum=0.875, weight_decay=1.0/32768)
+        model.parameters(), lr=0.32, momentum=0)
     # optimizer = torch.optim.SGD(
     #     model.parameters(), lr=0.08, momentum=0.875, weight_decay=1.0/32768)
     # optimizer = torch.optim.Adam(model.parameters(), lr=3E-4)
@@ -60,12 +62,10 @@ if __name__ == "__main__":
     model = model.cuda()
     writer = SummaryWriter()
 
-    metric_method = Metric(num_classes=1000)
+    metric_method = Metric(num_classes=10)
 
     total_epoch = 25
     step = 0
-    summary(model, (3, 224, 224))
-    exit(0)
     for epoch in range(total_epoch):
         print(f"Running at Epoch [{epoch+1}/{total_epoch}]")
         model.train()

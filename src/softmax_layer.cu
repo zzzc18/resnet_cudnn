@@ -12,8 +12,9 @@ void CrossEntropyLoss(int batch_size, float *output, float *labelsCPU) {
 
 #pragma omp parallel for num_threads(14)
     for (int n = 0; n < batch_size; n++) {
-        for (int i = 0; i < 1000; i++) {
-            losses[n] -= log(output[i + n * 1000]) * labelsCPU[i + n * 1000];
+        for (int i = 0; i < IMAGENET_CLASSES; i++) {
+            losses[n] -= log(output[i + n * IMAGENET_CLASSES]) *
+                         labelsCPU[i + n * IMAGENET_CLASSES];
         }
     }
     for (int n = 0; n < batch_size; n++) {
@@ -36,9 +37,7 @@ void CrossEntropyLoss(BlobPointer<float> &output_,
     checkCudaErrors(cudaMemcpy(labelsCPU, labels.CudaPtr(),
                                labels.LengthNchw() * sizeof(float),
                                cudaMemcpyDeviceToHost));
-    checkCudaErrors(cudaDeviceSynchronize());
     output_.ToHost(output, length);
-    checkCudaErrors(cudaDeviceSynchronize());
     CrossEntropyLoss(output_.get_n(), output, labelsCPU);
 }
 
@@ -52,7 +51,6 @@ void CrossEntropyLoss(BlobPointer<float> &output_,
         labelsCPU[i] = labels[i];
     }
     output_.ToHost(output, length);
-    checkCudaErrors(cudaDeviceSynchronize());
     CrossEntropyLoss(output_.get_n(), output, labelsCPU);
 }
 
@@ -88,21 +86,18 @@ void Softmax::Backward(BlobPointer<float> const &labels) {
 #ifdef LOSS_LOG
     CrossEntropyLoss(output_, labels);
 #endif
-    checkCudaErrors(cudaMemcpyAsync(grad_input_.CudaPtr(), output_.CudaPtr(),
-                                    output_.buf_size(),
-                                    cudaMemcpyDeviceToDevice));
+    checkCudaErrors(cudaMemcpy(d_temp_grad_features_, output_.CudaPtr(),
+                               output_.buf_size(), cudaMemcpyDeviceToDevice));
 
     checkCublasErrors(cublasSaxpy(cuda_->cublas(), labels.LengthNchw(),
                                   &cuda_->minus_one, labels.CudaPtr(), 1,
-                                  grad_input_.CudaPtr(), 1));
+                                  d_temp_grad_features_, 1));
 
     // normalize the grad-output by the batch size
-    int grad_output_size = labels.LengthNchw();
-
     float scale = 1.f / input_.get_n();
-
-    checkCublasErrors(cublasSscal(cuda_->cublas(), grad_output_size, &scale,
-                                  grad_input_.CudaPtr(), 1));
+    checkCublasErrors(cublasSscal(cuda_->cublas(), labels.LengthNchw(), &scale,
+                                  d_temp_grad_features_, 1));
+    this->BackwardCopy();
 
     return;
 }
@@ -125,7 +120,7 @@ int Softmax::ObtainPredictionAccuracy(std::vector<label_t> const &labels,
         idx_output = 0;
         idx_target = 0;
 
-        for (int i = 1; i < 1000; i++) {
+        for (int i = 1; i < IMAGENET_CLASSES; i++) {
             if (h_output[b * output_size + i] >
                 h_output[b * output_size + idx_output])
                 idx_output = i;
@@ -135,7 +130,7 @@ int Softmax::ObtainPredictionAccuracy(std::vector<label_t> const &labels,
         }
 
         if (idx_output == idx_target) hit_count++;
-        confusion_matrix[idx_output * 1000 + idx_target]++;
+        confusion_matrix[idx_output * IMAGENET_CLASSES + idx_target]++;
     }
 
     return hit_count;

@@ -84,29 +84,22 @@ void Fully_connected::Backward(BlobPointer<float> const &labels) {
     int batch_size = input_.get_n();
     if (useBias_)
         cublasSgemv(cuda_->cublas(), CUBLAS_OP_N, output_shape_, batch_size,
-                    &cuda_->one, grad_output_.CudaPtr(), output_shape_,
-                    d_one_vec, 1, &cuda_->zero, grad_biases_.CudaPtr(), 1);
+                    &cuda_->one, output_.CudaPtr(), output_shape_, d_one_vec, 1,
+                    &cuda_->zero, grad_biases_.CudaPtr(), 1);
 
     // dw = x * (dy)T
     cublasSgemm(cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_T, input_shape_,
                 output_shape_, batch_size, &cuda_->one, input_.CudaPtr(),
-                input_shape_, grad_output_.CudaPtr(), output_shape_,
-                &cuda_->zero, grad_weights_.CudaPtr(), input_shape_);
+                input_shape_, output_.CudaPtr(), output_shape_, &cuda_->zero,
+                grad_weights_.CudaPtr(), input_shape_);
 
     // dx = W * dy
-    if (!gradient_stop_)
+    if (!gradient_stop_) {
         cublasSgemm(cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_N, input_shape_,
                     batch_size, output_shape_, &cuda_->one, weights_.CudaPtr(),
-                    input_shape_, grad_output_.CudaPtr(), output_shape_,
-                    &cuda_->one, grad_input_.CudaPtr(), input_shape_);
-
-#if (DEBUG_DENSE & 0x02)
-    std::cout << name_ << "[BACKWARD]" << std::endl;
-    grad_output_.print(name_ + "::gradients", true);
-    grad_weights_.print(name_ + "::gfilter", true);
-    grad_biases_.print(name_ + "::gbias", true);
-    grad_input_.print(name_ + "::gdata", true);
-#endif
-
+                    input_shape_, output_.CudaPtr(), output_shape_,
+                    &cuda_->zero, d_temp_grad_features_, input_shape_);
+        this->BackwardCopy();
+    }
     return;
 }

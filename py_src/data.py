@@ -25,8 +25,9 @@ class ImageNetDataset(Dataset):
             category_name = category_path.split("/")[-1]
             img_paths = glob.glob(category_path+"/*")
             for img_path in img_paths:
-                self.img_path_label_pairs.append(
-                    [img_path, category_index_mapping[category_name]])
+                if category_index_mapping[category_name] % 100 == 0:
+                    self.img_path_label_pairs.append(
+                        [img_path, category_index_mapping[category_name]//100])
 
     def __len__(self):
         return len(self.img_path_label_pairs)

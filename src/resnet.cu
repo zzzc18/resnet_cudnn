@@ -32,7 +32,6 @@ Layer *ResNet::AddBasicBlock(std::string blockName, Layer *lastLayer,
                              int groups, int baseWidth, int dilation) {
     assert(groups == 1 and baseWidth == 64 and dilation == 1);
 
-    Layer *indentity = lastLayer;
     Layer *conv1 = new Conv2D(blockName + "conv1", planes, 3, false, stride, 1);
     Layer *bn1 = new Batchnorm2D(blockName + "bn1");
     Layer *relu1 = new Activation(blockName + "relu1");
@@ -40,23 +39,32 @@ Layer *ResNet::AddBasicBlock(std::string blockName, Layer *lastLayer,
     Layer *bn2 = new Batchnorm2D(blockName + "bn2", true);
     Layer *relu2 = new Activation(blockName + "relu2");
 
+    Layer *split{nullptr};
+    Layer *res{nullptr};
+
     if (downsampleLayer.first != nullptr) {
-        layerGraph_.AddEdge(lastLayer, downsampleLayer.first);
+        split = new Split(blockName + "split", conv1, downsampleLayer.first);
+        res = new Residual(blockName + "res", bn2, downsampleLayer.second);
+        layerGraph_.AddEdge(split, downsampleLayer.first);
         layerGraph_.AddEdge(downsampleLayer.first, downsampleLayer.second);
-        indentity = downsampleLayer.second;
+        layerGraph_.AddEdge(downsampleLayer.second, res);
+    } else {
+        res = new Residual(blockName + "res");
+        split = new Split(blockName + "split", conv1, res);
+        ((Residual *)res)->inputLayer1_ = bn2;
+        ((Residual *)res)->inputLayer2_ = split;
+        layerGraph_.AddEdge(split, res);
     }
 
-    Layer *res = new Residual(blockName + "res", bn2, indentity);
-
-    layerGraph_.AddEdge(lastLayer, conv1);
+    layerGraph_.AddEdge(lastLayer, split);
+    layerGraph_.AddEdge(split, conv1);
     layerGraph_.AddEdge(conv1, bn1);
     layerGraph_.AddEdge(bn1, relu1);
     layerGraph_.AddEdge(relu1, conv2);
     layerGraph_.AddEdge(conv2, bn2);
-
     layerGraph_.AddEdge(bn2, res);
-    layerGraph_.AddEdge(indentity, res);
     layerGraph_.AddEdge(res, relu2);
+
     return relu2;
 }
 
@@ -66,7 +74,6 @@ Layer *ResNet::AddBottleneckBlock(std::string blockName, Layer *lastLayer,
                                   int groups, int baseWidth, int dilation) {
     int width = planes * (baseWidth / 64) * groups;
 
-    Layer *indentity = lastLayer;
     Layer *conv1 = new Conv2D(blockName + "conv1", width, 1, false);
     Layer *bn1 = new Batchnorm2D(blockName + "bn1");
     Layer *relu1 = new Activation(blockName + "relu1");
@@ -79,15 +86,25 @@ Layer *ResNet::AddBottleneckBlock(std::string blockName, Layer *lastLayer,
     Layer *bn3 = new Batchnorm2D(blockName + "bn3", true);
     Layer *relu3 = new Activation(blockName + "relu3");
 
+    Layer *split{nullptr};
+    Layer *res{nullptr};
+
     if (downsampleLayer.first != nullptr) {
-        layerGraph_.AddEdge(lastLayer, downsampleLayer.first);
+        split = new Split(blockName + "split", conv1, downsampleLayer.first);
+        res = new Residual(blockName + "res", bn3, downsampleLayer.second);
+        layerGraph_.AddEdge(split, downsampleLayer.first);
         layerGraph_.AddEdge(downsampleLayer.first, downsampleLayer.second);
-        indentity = downsampleLayer.second;
+        layerGraph_.AddEdge(downsampleLayer.second, res);
+    } else {
+        res = new Residual(blockName + "res");
+        split = new Split(blockName + "split", conv1, res);
+        ((Residual *)res)->inputLayer1_ = bn3;
+        ((Residual *)res)->inputLayer2_ = split;
+        layerGraph_.AddEdge(split, res);
     }
 
-    Layer *res = new Residual(blockName + "res", bn3, indentity);
-
-    layerGraph_.AddEdge(lastLayer, conv1);
+    layerGraph_.AddEdge(lastLayer, split);
+    layerGraph_.AddEdge(split, conv1);
     layerGraph_.AddEdge(conv1, bn1);
     layerGraph_.AddEdge(bn1, relu1);
     layerGraph_.AddEdge(relu1, conv2);
@@ -95,10 +112,9 @@ Layer *ResNet::AddBottleneckBlock(std::string blockName, Layer *lastLayer,
     layerGraph_.AddEdge(bn2, relu2);
     layerGraph_.AddEdge(relu2, conv3);
     layerGraph_.AddEdge(conv3, bn3);
-
     layerGraph_.AddEdge(bn3, res);
-    layerGraph_.AddEdge(indentity, res);
     layerGraph_.AddEdge(res, relu3);
+
     return relu3;
 }
 
@@ -148,7 +164,7 @@ void ResNet::AddLayers() {
     inplanes_ = 64;
     dilation_ = 1;
 
-    Layer *conv1 = new Conv2D("conv1", 64, 7, false, 2, 3);
+    Layer *conv1 = new Conv2D("conv1", inplanes_, 7, false, 2, 3);
     conv1->SetGradientStop();
     Layer *bn1 = new Batchnorm2D("bn1");
     Layer *relu1 = new Activation("relu1");
@@ -168,8 +184,9 @@ void ResNet::AddLayers() {
 
     Layer *finalPool = new Pooling("finalPool", 7, 0, 1,
                                    CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING);
-    Layer *fc = new Fully_connected("fc", 1000);
+    Layer *fc = new Fully_connected("fc", IMAGENET_CLASSES);
     Layer *softmax = new Softmax("softmax");
+
     layerGraph_.AddEdge(layer4, finalPool);
     layerGraph_.AddEdge(finalPool, fc);
     layerGraph_.AddEdge(fc, softmax);

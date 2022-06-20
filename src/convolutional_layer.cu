@@ -117,25 +117,26 @@ void Conv2D::Backward(BlobPointer<float> const &labels) {
     // gradients of biases
     if (useBias_) {
         checkCudnnErrors(cudnnConvolutionBackwardBias(
-            cuda_->cudnn(), &cuda_->one, output_desc_, grad_output_.CudaPtr(),
+            cuda_->cudnn(), &cuda_->one, output_desc_, output_.CudaPtr(),
             &cuda_->zero, biases_desc_, grad_biases_.CudaPtr()));
     }
 
     // gradients of weights
     checkCudnnErrors(cudnnConvolutionBackwardFilter(
         cuda_->cudnn(), &cuda_->one, input_desc_, input_.CudaPtr(),
-        output_desc_, grad_output_.CudaPtr(), conv_desc_,
-        conv_backward_filter_algo_, d_workspace_, workspace_shape_,
-        &cuda_->zero, filter_desc_, grad_weights_.CudaPtr()));
+        output_desc_, output_.CudaPtr(), conv_desc_, conv_backward_filter_algo_,
+        d_workspace_, workspace_shape_, &cuda_->zero, filter_desc_,
+        grad_weights_.CudaPtr()));
 
     // gradients of input data
     if (!gradient_stop_) {
         // for multiple nodes have one
         checkCudnnErrors(cudnnConvolutionBackwardData(
             cuda_->cudnn(), &cuda_->one, filter_desc_, weights_.CudaPtr(),
-            output_desc_, grad_output_.CudaPtr(), conv_desc_,
+            output_desc_, output_.CudaPtr(), conv_desc_,
             conv_backward_data_algo_, d_workspace_, workspace_shape_,
-            &cuda_->one, input_desc_, grad_input_.CudaPtr()));
+            &cuda_->zero, input_desc_, d_temp_grad_features_));
+        this->BackwardCopy();
     }
 
 #if (DEBUG_CONV & 0x02)
