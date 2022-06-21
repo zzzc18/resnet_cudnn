@@ -69,10 +69,12 @@ class ImageNetDataset : public Dataset<DataType> {
             std::vector<std::string> imagePaths = this->Glob(folderPath);
             for (auto iter = imagePaths.begin(); iter != imagePaths.end();
                  iter++) {
-                if (labelName2Num[folderName] % 100 == 0)
-                    fileNameLabelPair.push_back(
-                        std::make_pair(folderPath + "/" + *iter,
-                                       labelName2Num[folderName] / 100));
+                // if (labelName2Num[folderName] % 100 == 0)
+                //     fileNameLabelPair.push_back(
+                //         std::make_pair(folderPath + "/" + *iter,
+                //                        labelName2Num[folderName] / 100));
+                fileNameLabelPair.push_back(std::make_pair(
+                    folderPath + "/" + *iter, labelName2Num[folderName]));
             }
         }
     }

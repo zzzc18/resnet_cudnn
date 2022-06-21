@@ -12,6 +12,7 @@ from tqdm import tqdm
 import torchmetrics
 from torch.utils.tensorboard import SummaryWriter
 from torchsummary import summary
+import resnet
 
 
 class Metric():
@@ -51,10 +52,14 @@ if __name__ == "__main__":
         dataset=val_dataset, batch_size=64, shuffle=False, drop_last=False, num_workers=12)
 
     # model = TestModel()
-    model = torchvision.models.resnet18(pretrained=False, num_classes=10)
-    # model = torchvision.models.alexnet(pretrained=False)
+    # model = torchvision.models.resnet18(
+    #     pretrained=False, zero_init_residual=True, num_classes=10)
+    # model = resnet.resnet18(
+    #     pretrained=False, zero_init_residual=True, num_classes=10)
+
+    model = torchvision.models.alexnet(pretrained=False, num_classes=10)
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=0.32, momentum=0)
+        model.parameters(), lr=0.08, momentum=0)
     # optimizer = torch.optim.SGD(
     #     model.parameters(), lr=0.08, momentum=0.875, weight_decay=1.0/32768)
     # optimizer = torch.optim.Adam(model.parameters(), lr=3E-4)
@@ -98,6 +103,6 @@ if __name__ == "__main__":
 
         metric_result = metric_method.compute()
         metric_method.reset()
-        print(f"My metric:{metric_result}")
+        print(f"My metric: {metric_result}")
         writer.add_scalar(
             "val acc", scalar_value=metric_result["Accuracy"].item(), global_step=epoch)

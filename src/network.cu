@@ -126,7 +126,7 @@ int Network::ObtainPredictionAccuracy(std::vector<label_t> const &target,
 }
 
 void Network::AddLayers() {
-    // AlexNet-BN-residualFC
+    // AlexNet-BN
     Layer *conv0 = new Conv2D("conv0", 64, 11, false, 4, 2);
     conv0->SetGradientStop();
     Layer *bn0 = new Batchnorm2D("bn0");
@@ -180,12 +180,7 @@ void Network::AddLayers() {
     Layer *fc1_relu = new Activation("fc1_relu", CUDNN_ACTIVATION_RELU, 2);
     layerGraph_.AddEdge(fc0_relu, fc1);
     layerGraph_.AddEdge(fc1, fc1_bn);
-
-    // Residual
-    Layer *res0 = new Residual("res0", fc0_relu, fc1_bn);
-    layerGraph_.AddEdge(fc0_relu, res0);
-    layerGraph_.AddEdge(fc1_bn, res0);
-    layerGraph_.AddEdge(res0, fc1_relu);
+    layerGraph_.AddEdge(fc1_bn, fc1_relu);
 
     Layer *fc2 = new Fully_connected("fc2", IMAGENET_CLASSES);
     Layer *softmax = new Softmax("softmax");
@@ -294,6 +289,19 @@ void Network::Predict(const Dataset<dataType> *datasetPtr) {
     // step 4. calculate loss and accuracy
     std::cout << "精度: " << num_success << "/" << datasetPtr->Length() << "\n";
     std::cout << "Acc: " << 100.0 * num_success / datasetPtr->Length() << "%\n";
+    // std::cout << "\n   *  ";
+    // for (int i = 0; i < IMAGENET_CLASSES; i++)
+    //     std::cout << std::setw(4) << i << "  ";
+    // std::cout << "\n";
+    // for (int i = 0; i < IMAGENET_CLASSES; i++) {
+    //     std::cout << std::setw(4) << i << "  ";
+    //     for (int j = 0; j < IMAGENET_CLASSES; j++) {
+    //         std::cout << std::setw(4)
+    //                   << confusion_matrix[i * IMAGENET_CLASSES + j] << "  ";
+    //     }
+    //     std::cout << "\n";
+    // }
+    std::cout << "\n";
 }
 
 void Network::AllocateMemoryForFeatures() {
@@ -319,7 +327,7 @@ void Network::AllocateMemoryForFeatures() {
     length_features_ = shape[0] * shape[1] * shape[2] * shape[3];
 
     layerGraph_.layers_[0]->in_shape_ = shape;
-    max_layer_length_feature_ = 0;
+    max_layer_length_feature_ = length_features_;
     for (auto layer : layerGraph_.layers_) {
         layer->InitFeatureShape();
         for (auto nextLayer : layerGraph_.edgeGraph_[layer]) {
@@ -483,10 +491,6 @@ void Network::InitWeights() {
             i++;
         }
     } else {
-        checkCudaErrors(
-            cudaMemset(d_grad_weights_, 0, sizeof(float) * length_weights_));
-        checkCudaErrors(
-            cudaMemset(d_grad_biases_, 0, sizeof(float) * length_biases_));
         checkCudaErrors(cudaMemset(d_grad_weights_history_, 0,
                                    sizeof(float) * length_weights_));
         checkCudaErrors(cudaMemset(d_grad_biases_history_, 0,

@@ -78,8 +78,8 @@ void Layer::InitiateWeightsAndBiases() {
 
     // He kaiming init for Linear
     // Height is actually input dims for fc
-    std::uniform_real_distribution<> disFC(-sqrt(1 / weights_.GetHeight()),
-                                           sqrt(1 / weights_.GetHeight()));
+    std::uniform_real_distribution<> disFC(-sqrt(1.0 / weights_.GetHeight()),
+                                           sqrt(1.0 / weights_.GetHeight()));
 
     std::vector<float> weights(weights_.LengthNchw(), 0.0);
     if (this->GetLayerType() == LayerType::Conv2D) {
@@ -119,6 +119,7 @@ int Layer::ObtainPredictionAccuracy(std::vector<label_t> const &labels,
 }
 
 void Layer::BackwardCopy() {
+    if (gradient_stop_) return;
     if (afterSplitLayer_) {
         checkCublasErrors(cublasSaxpy(cuda_->cublas(), input_.LengthNchw(),
                                       &cuda_->one, d_temp_grad_features_, 1,

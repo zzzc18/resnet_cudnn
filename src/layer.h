@@ -13,7 +13,7 @@
 #include "cuda_helper.h"
 #include "utilities_sc.h"
 
-const int IMAGENET_CLASSES = 10;
+const int IMAGENET_CLASSES = 1000;
 
 enum class WorkloadType { training, inference };
 
