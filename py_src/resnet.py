@@ -281,8 +281,19 @@ class ResNet(nn.Module):
 
     def _forward_impl(self, x: Tensor) -> Tensor:
         # See note [TorchScript super()]
+        print(x.mean(dim=(0, 2, 3)))
+        print(x.var(dim=(0, 2, 3)))
         x = self.conv1(x)
+        print("conv1")
+        print(self.conv1.weight.mean())
+        print(self.conv1.weight.var())
+        print(x.mean(dim=(0, 2, 3)))
+        print(x.var(dim=(0, 2, 3)))
+        exit()
         x = self.bn1(x)
+        print("bn1")
+        print(self.bn1.running_mean.min(), self.bn1.running_mean.max())
+        print(self.bn1.running_var.min(), self.bn1.running_var.max())
         x = self.relu(x)
         x = self.maxpool(x)
 

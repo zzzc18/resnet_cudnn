@@ -13,6 +13,12 @@ __global__ void InitiateZeros(float *d_one_vec, size_t length) {
     d_one_vec[i] = 0.f;
 }
 
+__global__ void InitiateVecOnes(float *d_one_vec, size_t length) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= length) return;
+    d_one_vec[i] = 1.f;
+}
+
 void LayerGraph::AddEdge(Layer *from, Layer *to) {
     layerCollection_.insert(from);
     layerCollection_.insert(to);
@@ -65,7 +71,8 @@ void Layer::InitiateWeightsAndBiases() {
 
     // Create random network
     std::random_device rd;
-    std::mt19937 gen(0);
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 gen(seed);
 
     // Xaiver like init
     float range;
@@ -73,8 +80,8 @@ void Layer::InitiateWeightsAndBiases() {
     std::uniform_real_distribution<> uniform(-range, range);
 
     // He kaiming init for Conv2D
-    // channels is actually output dims for kernel
-    std::normal_distribution<> dis(0, sqrt(2.0 / weights_.GetChannels()));
+    // actually [outdim*kernel_size*kernel_size]
+    std::normal_distribution<> dis(0, sqrt(2.0 / weights_.LengthChw()));
 
     // He kaiming init for Linear
     // Height is actually input dims for fc

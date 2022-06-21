@@ -11,7 +11,7 @@ class Activation : public Layer {
    public:
     Activation(std::string const &name,
                cudnnActivationMode_t const &mode = CUDNN_ACTIVATION_RELU,
-               float const coef = 5.f) {
+               float const coef = 0.f) {
         SetName(name);
         layerType_ = LayerType::Activation;
         mode_ = mode;

@@ -4,14 +4,6 @@
 
 #include "fully_connected_layer.h"
 
-__global__ void InitiateVecOnes(float *d_one_vec, size_t length) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (i >= length) return;
-
-    d_one_vec[i] = 1.f;
-}
-
 void Fully_connected::InitFeatureShape() {
     // Reshape
     std::array<int, 4> old_in_shape(in_shape_);

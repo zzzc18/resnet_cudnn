@@ -41,6 +41,13 @@ class Metric():
 if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore")
+
+    # torch.manual_seed(1118)
+    # import random
+    # random.seed(1118)
+    # import numpy as np
+    # np.random.seed(1118)
+
     train_dataset = ImageNetDataset("../ImageNet", "train", get_transform())
     val_dataset = ImageNetDataset("../ImageNet", "val", get_transform())
 
@@ -52,14 +59,14 @@ if __name__ == "__main__":
         dataset=val_dataset, batch_size=64, shuffle=False, drop_last=False, num_workers=12)
 
     # model = TestModel()
-    # model = torchvision.models.resnet18(
-    #     pretrained=False, zero_init_residual=True, num_classes=10)
+    model = torchvision.models.resnet18(
+        pretrained=False, zero_init_residual=True, num_classes=10)
     # model = resnet.resnet18(
     #     pretrained=False, zero_init_residual=True, num_classes=10)
 
-    model = torchvision.models.alexnet(pretrained=False, num_classes=10)
+    # model = torchvision.models.alexnet(pretrained=False, num_classes=10)
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=0.08, momentum=0)
+        model.parameters(), lr=0.32, momentum=0)
     # optimizer = torch.optim.SGD(
     #     model.parameters(), lr=0.08, momentum=0.875, weight_decay=1.0/32768)
     # optimizer = torch.optim.Adam(model.parameters(), lr=3E-4)

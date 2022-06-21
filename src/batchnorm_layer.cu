@@ -15,7 +15,6 @@ void Batchnorm2D::InitiateWeightsAndBiases() {
     weights_.ToDevice(weights.data(), weights.size());
 
     std::vector<float> biases(biases_.LengthNchw(), 0.0);
-    for (size_t i = 0; i < biases.size(); i++) biases[i] = 0.f;
     biases_.ToDevice(biases.data(), biases.size());
 }
 
@@ -30,8 +29,10 @@ void Batchnorm2D::AllocateBatchnorm2D() {
     if (resultRunningVariance_ == nullptr) {
         checkCudaErrors(cudaMalloc((void **)&resultRunningVariance_,
                                    sizeof(float) * input_.GetChannels()));
-        checkCudaErrors(cudaMemset(resultRunningVariance_, 0,
-                                   sizeof(float) * input_.GetChannels()));
+        InitiateVecOnes<<<(input_.GetChannels() + BLOCK_DIM_1D - 1) /
+                              BLOCK_DIM_1D,
+                          BLOCK_DIM_1D>>>((float *)resultRunningVariance_,
+                                          input_.GetChannels());
     }
 
     if (resultSaveMean_ == nullptr) {

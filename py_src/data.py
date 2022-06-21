@@ -28,6 +28,8 @@ class ImageNetDataset(Dataset):
                 if category_index_mapping[category_name] % 100 == 0:
                     self.img_path_label_pairs.append(
                         [img_path, category_index_mapping[category_name]//100])
+                # self.img_path_label_pairs.append(
+                #     [img_path, category_index_mapping[category_name]])
 
     def __len__(self):
         return len(self.img_path_label_pairs)

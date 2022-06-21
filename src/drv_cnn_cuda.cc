@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     ResNet net(18);
     net.AddLayers();
 
-    const int epoch = 100;
+    const int epoch = 25;
     for (int i = 0; i < epoch; i++) {
         std::cout << "running at epoch: " << i << "\n";
         std::cout << "learning_rate: " << std::fixed << std::setprecision(5)
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         net.Predict(&valDataset);
 
         t.PrintDiff("预测时间...");
-        learning_rate *= 0.95;
+        learning_rate *= 0.96;
         learning_rate = std::max(learning_rate_lower_bound, learning_rate);
         std::cout << "\n";
     }

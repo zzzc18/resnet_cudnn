@@ -21,7 +21,6 @@ void CrossEntropyLoss(int batch_size, float *output, float *labelsCPU) {
         loss_sum += losses[n];
     }
     float loss_mean = loss_sum / batch_size;
-    // std::cout << "loss_mean: " << loss_mean << "\n";
     Log("loss.log", "DEBUG", std::to_string(loss_mean));
     free(output);
     free(labelsCPU);

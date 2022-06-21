@@ -206,6 +206,10 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
     std::vector<float> samples(size_one_feature * batch_size_train);
     std::vector<float> labels(IMAGENET_CLASSES * batch_size_train, 0.0);
 
+    int num_success = 0;
+    std::vector<label_t> labelsPredict(IMAGENET_CLASSES * batch_size_train, 0);
+    std::vector<int> confusion_matrix(IMAGENET_CLASSES * IMAGENET_CLASSES, 0);
+
     float *d_train_labels{nullptr};
     checkCudaErrors(
         cudaMalloc((void **)&d_train_labels,
@@ -223,14 +227,16 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
                 samples[i * size_one_feature + k] = *(float *)(item.first + k);
             }
             labels[i * IMAGENET_CLASSES + item.second] = 1;
+            labelsPredict[i * IMAGENET_CLASSES + item.second] = 1;
             free(item.first);
         }
 
         this->layerGraph_.layers_[0]->input_.ToDevice(samples);
         train_labels_ptr.ToDevice(labels);
 
-        // Log("loss.log", "DEBUG", std::to_string(step));
         this->Forward();
+        num_success +=
+            this->ObtainPredictionAccuracy(labelsPredict, confusion_matrix);
         this->Backward(train_labels_ptr);
         this->Update(learning_rate, momentum, weightDecay);
 
@@ -238,19 +244,25 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
             labels[i * IMAGENET_CLASSES +
                    datasetPtr->GetLabel(
                        rand_perm[step * batch_size_train + i])] = 0;
+            labelsPredict[i * IMAGENET_CLASSES +
+                          datasetPtr->GetLabel(
+                              rand_perm[step * batch_size_train + i])] = 0;
         }
 
         // fetch next data
         index += batch_size_train;
         int k = index * 100 / datasetPtr->Length();
-        if (progress == 0 || k > progress + 4) {
+        if (progress == 0 || k > progress + 1) {
             ProgressBar(k);
             progress = k;
         }
     }
 
+    std::cout << "\nTrain精度: " << num_success << "/" << datasetPtr->Length()
+              << "\n";
+    std::cout << "Train_Acc: " << 100.0 * num_success / datasetPtr->Length()
+              << "%\n";
     checkCudaErrors(cudaFree(d_train_labels));
-    std::cout << "\n";
 }
 
 void Network::Predict(const Dataset<dataType> *datasetPtr) {
@@ -265,7 +277,7 @@ void Network::Predict(const Dataset<dataType> *datasetPtr) {
     std::vector<int> confusion_matrix(IMAGENET_CLASSES * IMAGENET_CLASSES, 0);
 
     for (auto step = 0; step < batch_count_test; step++) {
-#pragma omp parallel for num_threads(12)
+#pragma omp parallel for num_threads(14)
         for (int i = 0; i < batch_size_test; i++) {
             dataType item = datasetPtr->GetItem(step * batch_size_test + i);
             for (int k = 0; k < size_one_feature; k++) {
@@ -287,8 +299,10 @@ void Network::Predict(const Dataset<dataType> *datasetPtr) {
     }
 
     // step 4. calculate loss and accuracy
-    std::cout << "精度: " << num_success << "/" << datasetPtr->Length() << "\n";
-    std::cout << "Acc: " << 100.0 * num_success / datasetPtr->Length() << "%\n";
+    std::cout << "\nVal精度: " << num_success << "/" << datasetPtr->Length()
+              << "\n";
+    std::cout << "Val_Acc: " << 100.0 * num_success / datasetPtr->Length()
+              << "%\n";
     // std::cout << "\n   *  ";
     // for (int i = 0; i < IMAGENET_CLASSES; i++)
     //     std::cout << std::setw(4) << i << "  ";
@@ -297,11 +311,11 @@ void Network::Predict(const Dataset<dataType> *datasetPtr) {
     //     std::cout << std::setw(4) << i << "  ";
     //     for (int j = 0; j < IMAGENET_CLASSES; j++) {
     //         std::cout << std::setw(4)
-    //                   << confusion_matrix[i * IMAGENET_CLASSES + j] << "  ";
+    //                   << confusion_matrix[i * IMAGENET_CLASSES + j] << "
+    //                   ";
     //     }
     //     std::cout << "\n";
     // }
-    std::cout << "\n";
 }
 
 void Network::AllocateMemoryForFeatures() {
@@ -496,5 +510,4 @@ void Network::InitWeights() {
         checkCudaErrors(cudaMemset(d_grad_biases_history_, 0,
                                    sizeof(float) * length_biases_));
     }
-    checkCudaErrors(cudaDeviceSynchronize());
 }

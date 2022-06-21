@@ -88,6 +88,7 @@ class ImageNetDataset : public Dataset<DataType> {
         if (img.data == nullptr) {
             throw "图片文件不存在: " + fileNameLabelPair[index].first;
         }
+        assert(img.channels() == 3);
         cv::resize(img, img, cv::Size(224, 224));
         cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
         float *imgCHW{nullptr};

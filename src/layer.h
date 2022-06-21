@@ -31,6 +31,8 @@ enum class LayerType {
 
 __global__ void InitiateZeros(float *d_one_vec, size_t length);
 
+__global__ void InitiateVecOnes(float *d_one_vec, size_t length);
+
 class LayerGraph;
 
 class Layer {
