@@ -17,7 +17,7 @@ class InplaceReLU : public Layer {
         mode_ = mode;
 
         cudnnCreateActivationDescriptor(&act_desc_);
-        cudnnSetActivationDescriptor(act_desc_, mode, CUDNN_PROPAGATE_NAN,
+        cudnnSetActivationDescriptor(act_desc_, mode, CUDNN_NOT_PROPAGATE_NAN,
                                      coef);
     }
 

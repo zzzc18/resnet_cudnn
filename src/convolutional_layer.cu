@@ -92,24 +92,26 @@ void Conv2D::DescriptorsAndWorkSpace() {
 
 void Conv2D::Forward() {
     checkCudnnErrors(cudnnConvolutionForward(
-        cuda_->cudnn(), &cuda_->one, input_desc_, input_.CudaPtr(),
-        filter_desc_, weights_.CudaPtr(), conv_desc_, conv_forward_algo_,
-        d_workspace_, workspace_shape_, &cuda_->zero, output_desc_,
-        output_.CudaPtr()));
+        cuda_->cudnn(),      // cudnnHandle_t                       handle,
+        &cuda_->one,         // const void                         *alpha,
+        input_desc_,         // const cudnnTensorDescriptor_t       xDesc,
+        input_.CudaPtr(),    // const void                         *x,
+        filter_desc_,        // const cudnnFilterDescriptor_t       wDesc,
+        weights_.CudaPtr(),  // const void                         *w,
+        conv_desc_,          // const cudnnConvolutionDescriptor_t  convDesc,
+        conv_forward_algo_,  // cudnnConvolutionFwdAlgo_t           algo,
+        d_workspace_,        // void                               *workSpace,
+        workspace_shape_,    // size_t workSpaceSizeInBytes,
+        &cuda_->zero,        // const void                         *beta,
+        output_desc_,        // const cudnnTensorDescriptor_t       yDesc,
+        output_.CudaPtr()    // void                               *y
+        ));
 
     if (useBias_) {
         checkCudnnErrors(cudnnAddTensor(
             cuda_->cudnn(), &cuda_->one, biases_desc_, biases_.CudaPtr(),
             &cuda_->one, output_desc_, output_.CudaPtr()));
     }
-
-#if (DEBUG_CONV & 0x01)
-    input_.print(name_ + "::input", true, input_.GetWidth());
-    weights_.print(name_ + "::weight", true, weights_.GetWidth());
-    biases_.print(name_ + "::bias", true, biases_.GetWidth());
-    output_.print(name_ + "::output", true, output_.GetWidth());
-#endif
-
     return;
 }
 

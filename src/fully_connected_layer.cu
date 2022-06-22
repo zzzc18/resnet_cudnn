@@ -62,14 +62,6 @@ void Fully_connected::Forward() {
             cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_N, output_shape_,
             batch_size, 1, &cuda_->one, biases_.CudaPtr(), output_shape_,
             d_one_vec, 1, &cuda_->one, output_.CudaPtr(), output_shape_));
-
-#if (DEBUG_DENSE & 0x01)
-    input_.print(name_ + "::input", true);
-    weights_.print(name_ + "::weight", true);
-    biases_.print(name_ + "::bias", true);
-    output_.print(name_ + "::output", true);
-#endif
-    return;
 }
 
 void Fully_connected::Backward(BlobPointer<float> const &labels) {

@@ -311,8 +311,7 @@ void Network::Predict(const Dataset<dataType> *datasetPtr) {
     //     std::cout << std::setw(4) << i << "  ";
     //     for (int j = 0; j < IMAGENET_CLASSES; j++) {
     //         std::cout << std::setw(4)
-    //                   << confusion_matrix[i * IMAGENET_CLASSES + j] << "
-    //                   ";
+    //                   << confusion_matrix[i * IMAGENET_CLASSES + j] << "  ";
     //     }
     //     std::cout << "\n";
     // }

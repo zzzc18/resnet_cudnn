@@ -81,7 +81,9 @@ void Layer::InitiateWeightsAndBiases() {
 
     // He kaiming init for Conv2D
     // actually [outdim*kernel_size*kernel_size]
-    std::normal_distribution<> dis(0, sqrt(2.0 / weights_.LengthChw()));
+    std::normal_distribution<> dis(
+        0, sqrt(2.0 / (weights_.GetHeight() * weights_.GetWidth() *
+                       weights_.get_n())));
 
     // He kaiming init for Linear
     // Height is actually input dims for fc

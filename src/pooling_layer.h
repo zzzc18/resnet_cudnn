@@ -18,7 +18,7 @@ class Pooling : public Layer {
         SetName(name);
         layerType_ = LayerType::Pooling;
         cudnnCreatePoolingDescriptor(&pool_desc_);
-        cudnnSetPooling2dDescriptor(pool_desc_, mode_, CUDNN_PROPAGATE_NAN,
+        cudnnSetPooling2dDescriptor(pool_desc_, mode_, CUDNN_NOT_PROPAGATE_NAN,
                                     kernel_size_, kernel_size_, padding_,
                                     padding_, stride_, stride_);
     }
