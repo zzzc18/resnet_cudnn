@@ -1,4 +1,4 @@
-from sklearn.utils import shuffle
+import numpy as np
 import torch
 import glob
 import torch.nn as nn
@@ -99,6 +99,7 @@ if __name__ == "__main__":
         print(f"My metric:{metric_method.compute()}")
         metric_method.reset()
 
+        confusion_matrix = np.zeros((10, 10))
         model.eval()
         for img, label in tqdm(val_dataloader):
             step += 1
@@ -107,7 +108,11 @@ if __name__ == "__main__":
             output = model(img)
             loss = loss_func(output, label)
             batch_metric = metric_method(output, label)
+            predict = output.cpu().argmax(dim=-1)
+            for i in range(label.shape[0]):
+                confusion_matrix[predict[i], label[i]] += 1
 
+        print(confusion_matrix)
         metric_result = metric_method.compute()
         metric_method.reset()
         print(f"My metric: {metric_result}")
