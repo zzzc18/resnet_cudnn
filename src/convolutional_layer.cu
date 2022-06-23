@@ -140,13 +140,5 @@ void Conv2D::Backward(BlobPointer<float> const &labels) {
             &cuda_->zero, input_desc_, d_temp_grad_features_));
         this->BackwardCopy();
     }
-
-#if (DEBUG_CONV & 0x02)
-    std::cout << name_ << "[BACKWARD]\n";
-    grad_input_.print(name_ + "gdata", true);
-    grad_output_.print(name_ + "::gradients", true, grad_output_.GetWidth());
-    grad_biases_.print(name_ + "gbias", true);
-    grad_weights_.print(name_ + "gfilter", true);
-#endif
     return;
 }

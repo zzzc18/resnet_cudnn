@@ -36,11 +36,7 @@ void Fully_connected::DescriptorsAndWorkSpace() {
     }
 
     int batch_size = input_.get_n();
-#ifdef ZDEBUG
-    std::cout << this->GetName()
-              << "::d_one_vec=" << sizeof(float) * batch_size / 1024 / 1024
-              << "MB\n";
-#endif
+
     checkCudaErrors(
         cudaMalloc((void **)&d_one_vec, sizeof(float) * batch_size));
     InitiateVecOnes<<<(batch_size + BLOCK_DIM_1D - 1) / BLOCK_DIM_1D,
@@ -50,39 +46,62 @@ void Fully_connected::DescriptorsAndWorkSpace() {
 void Fully_connected::Forward() {
     int batch_size = input_.get_n();
     // output = weightsT * input (without biases)
-    checkCublasErrors(cublasSgemm(cuda_->cublas(), CUBLAS_OP_T, CUBLAS_OP_N,
-                                  output_shape_, batch_size, input_shape_,
-                                  &cuda_->one, weights_.CudaPtr(), input_shape_,
-                                  input_.CudaPtr(), input_shape_, &cuda_->zero,
-                                  output_.CudaPtr(), output_shape_));
+    checkCublasErrors(cublasSgemm(
+        cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_N,  // OP(A),OP(B)
+        output_shape_, batch_size, input_shape_,    // m,n,k
+        &cuda_->one,                                // alpha
+        weights_.CudaPtr(), output_shape_,          // A, lda
+        input_.CudaPtr(), input_shape_,             // B, ldb
+        &cuda_->zero,                               // beta
+        output_.CudaPtr(), output_shape_            // C, ldc
+        ));
 
+    if (!useBias_) return;
     // output += biases * d-one-vecT
-    if (useBias_)
-        checkCublasErrors(cublasSgemm(
-            cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_N, output_shape_,
-            batch_size, 1, &cuda_->one, biases_.CudaPtr(), output_shape_,
-            d_one_vec, 1, &cuda_->one, output_.CudaPtr(), output_shape_));
+    checkCublasErrors(cublasSgemm(cuda_->cublas(),               // handle
+                                  CUBLAS_OP_N, CUBLAS_OP_N,      // OP(A),OP(B)
+                                  output_shape_, batch_size, 1,  // m,n,k
+                                  &cuda_->one,                   // alpha
+                                  biases_.CudaPtr(), output_shape_,  // A, lda
+                                  d_one_vec, 1,                      // B, ldb
+                                  &cuda_->one,                       // beta
+                                  output_.CudaPtr(), output_shape_   // C, ldc
+                                  ));
 }
 
 void Fully_connected::Backward(BlobPointer<float> const &labels) {
     int batch_size = input_.get_n();
-    if (useBias_)
-        cublasSgemv(cuda_->cublas(), CUBLAS_OP_N, output_shape_, batch_size,
-                    &cuda_->one, output_.CudaPtr(), output_shape_, d_one_vec, 1,
-                    &cuda_->zero, grad_biases_.CudaPtr(), 1);
+    if (useBias_) {
+        checkCublasErrors(
+            cublasSgemv(cuda_->cublas(), CUBLAS_OP_N, output_shape_, batch_size,
+                        &cuda_->one, output_.CudaPtr(), output_shape_,
+                        d_one_vec, 1, &cuda_->zero, grad_biases_.CudaPtr(), 1));
+    }
 
-    // dw = x * (dy)T
-    cublasSgemm(cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_T, input_shape_,
-                output_shape_, batch_size, &cuda_->one, input_.CudaPtr(),
-                input_shape_, output_.CudaPtr(), output_shape_, &cuda_->zero,
-                grad_weights_.CudaPtr(), input_shape_);
+    // dw = xT * (dy)
+    checkCublasErrors(cublasSgemm(cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_T,
+                                  output_shape_, input_shape_, batch_size,
+                                  &cuda_->one, output_.CudaPtr(), output_shape_,
+                                  input_.CudaPtr(), input_shape_, &cuda_->zero,
+                                  grad_weights_.CudaPtr(), output_shape_));
 
-    // dx = W * dy
+    std::vector<float> outputCPU(output_.LengthNchw());
+    output_.ToHost(outputCPU);
+
+    std::vector<float> grad_weightsCPU(grad_weights_.LengthNchw());
+    grad_weights_.ToHost(grad_weightsCPU);
+
+    // dx = W * dyT
     if (!gradient_stop_) {
-        cublasSgemm(cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_N, input_shape_,
-                    batch_size, output_shape_, &cuda_->one, weights_.CudaPtr(),
-                    input_shape_, output_.CudaPtr(), output_shape_,
-                    &cuda_->zero, d_temp_grad_features_, input_shape_);
+        checkCublasErrors(cublasSgemm(
+            cuda_->cublas(), CUBLAS_OP_T, CUBLAS_OP_N,  // OP(A),OP(B)
+            input_shape_, batch_size, output_shape_,    // m,n,k
+            &cuda_->one,                                // alpha
+            weights_.CudaPtr(), output_shape_,          // A, lda
+            output_.CudaPtr(), output_shape_,           // B, ldb
+            &cuda_->zero,                               // beta
+            d_temp_grad_features_, input_shape_         // C, ldc
+            ));
         this->BackwardCopy();
     }
     return;

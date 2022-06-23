@@ -1,8 +1,11 @@
 from cProfile import label
 import glob
+import numpy as np
+import torch
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import torchvision
+import cv2
 
 
 class ImageNetDataset(Dataset):
@@ -25,19 +28,39 @@ class ImageNetDataset(Dataset):
             category_name = category_path.split("/")[-1]
             img_paths = glob.glob(category_path+"/*")
             for img_path in img_paths:
-                if category_index_mapping[category_name] % 100 == 0:
-                    self.img_path_label_pairs.append(
-                        [img_path, category_index_mapping[category_name]//100])
-                # self.img_path_label_pairs.append(
-                #     [img_path, category_index_mapping[category_name]])
+                # if category_index_mapping[category_name] % 100 == 0:
+                #     self.img_path_label_pairs.append(
+                #         [img_path, category_index_mapping[category_name]//100])
+                self.img_path_label_pairs.append(
+                    [img_path, category_index_mapping[category_name]])
+        self.img_path_label_pairs = sorted(
+            self.img_path_label_pairs, key=lambda x: x[0])
 
     def __len__(self):
         return len(self.img_path_label_pairs)
 
     def __getitem__(self, index):
-        img = Image.open(self.img_path_label_pairs[index][0])
+        # img = Image.open(self.img_path_label_pairs[index][0])
+        # label = self.img_path_label_pairs[index][1]
+        # img = self.transform(img)
+
+        img: np.ndarray = cv2.imread(self.img_path_label_pairs[index][0])
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(img, (224, 224), None, 0.0, 0.0, cv2.INTER_LINEAR)
+        img = img.transpose((2, 0, 1))
+        img = img.astype(np.float32)
+        img = img/255.0
+        img[0, :] = (img[0, :]-0.485)/0.229
+        img[1, :] = (img[1, :]-0.456)/0.224
+        img[2, :] = (img[2, :]-0.406)/0.225
+        img = torch.Tensor(img)
         label = self.img_path_label_pairs[index][1]
-        img = self.transform(img)
+
+        # print(self.img_path_label_pairs[index][0])
+        # for x in range(160, 165):
+        #     for y in range(160, 165):
+        #         print(img[0, x, y].item())
+        # exit(0)
         return img, label
 
 
@@ -81,7 +104,8 @@ class ToRGB:
 
 def get_transform():
     transform = torchvision.transforms.Compose([
-        torchvision.transforms.Resize((224, 224)),
+        torchvision.transforms.Resize(
+            (224, 224), interpolation=torchvision.transforms.InterpolationMode.BILINEAR),
         ToRGB(),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]

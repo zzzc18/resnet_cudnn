@@ -26,11 +26,6 @@ void Pooling::Forward() {
                         d_retain_output_);
     checkCudaErrors(cudaMemcpy(output_.CudaPtr(), d_retain_output_,
                                output_.buf_size(), cudaMemcpyDeviceToDevice));
-#if (DEBUG_POOLING & 0x01)
-    input_.print(name_ + "::input", true, input_.GetWidth());
-    output_.print(name_ + "::output", true, output_.GetWidth());
-#endif
-
     return;
 }
 
@@ -40,13 +35,5 @@ void Pooling::Backward(BlobPointer<float> const &labels) {
         output_desc_, output_.CudaPtr(), input_desc_, input_.CudaPtr(),
         &cuda_->zero, input_desc_, d_temp_grad_features_));
     this->BackwardCopy();
-
-#if (DEBUG_POOLING & 0x02)
-    std::cout << name_ << "[BACKWARD]" << std::endl;
-    input_.print(name_ + "::input", true, input_.GetWidth());
-    output_.print(name_ + "::predict", true, output_.GetWidth());
-    grad_output_.print(name_ + "::dy", true, grad_output_.GetWidth());
-    grad_input_.print(name_ + "::dx", true, grad_input_.GetWidth());
-#endif
     return;
 }

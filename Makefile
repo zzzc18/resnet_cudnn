@@ -4,7 +4,7 @@ CC = g++
 # NVCC=${CUDA_PATH}/bin/nvcc -ccbin ${CC}
 NVCC = $(shell which nvcc)
 
-INCLUDES = -I$(CUDA_PATH)/include -Isrc -I/usr/include/opencv4
+INCLUDES = -I$(CUDA_PATH)/include -Isrc -I/usr/include/opencv4 -I/usr/local/include
 #INCLUDES = -I${CUDA_PATH}/samples/common/inc -I$(CUDA_PATH)/include
 # NVCC_FLAGS= --resource-usage -Xcompiler -rdynamic -Xcompiler # -fopenmp #-rdc=true -lnvToolsExt
 NVCC_FLAGS= --gpu-architecture=sm_86 --resource-usage -Xcompiler -rdynamic -Xcompiler -fopenmp #-rdc=true -lnvToolsExt
@@ -17,6 +17,7 @@ NVCC_FLAGS= --gpu-architecture=sm_86 --resource-usage -Xcompiler -rdynamic -Xcom
 # LIBRARIES += -L/usr/local/cuda/lib64 -lcublas -lcudnn  -lcurand #-lgomp -lnvToolsExt
 LIBRARIES += -L$(CUDA_PATH)/lib64 -lcublas -lcudnn  -lcurand #-lgomp -lnvToolsExt
 LIBRARIES += -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs
+LIBRARIES += -L/usr/local/lib -lcnpy
 LIBRARIES += -DLOSS_LOG
 # LIBRARIES += -DZDEBUG
 ALL_CCFLAGS += -m64 -O2 -std=c++17 $(NVCC_FLAGS) $(INCLUDES) $(LIBRARIES)

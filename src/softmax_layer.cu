@@ -66,18 +66,35 @@ void Softmax::Forward() {
     input_desc_ = input_.tensor();
     output_desc_ = output_.tensor();
 
-#if (DEBUG_SOFTMAX & 0x01)
-    std::cout << name_ << "[FORWARD]\n";
-    input_.print(name_ + "::input", true);
-#endif
     checkCudnnErrors(cudnnSoftmaxForward(
         cuda_->cudnn(), CUDNN_SOFTMAX_ACCURATE, CUDNN_SOFTMAX_MODE_CHANNEL,
         &cuda_->one, input_desc_, input_.CudaPtr(), &cuda_->zero, output_desc_,
         output_.CudaPtr()));
 
-#if (DEBUG_SOFTMAX & 0x01)
-    output_.print(name_ + "::output", true);
-#endif
+    // std::vector<float> tmp(input_.LengthNchw());
+    // input_.ToHost(tmp);
+    // float mean = std::accumulate(tmp.begin(), tmp.end(), 0.0) / tmp.size();
+    // float var =
+    //     std::accumulate(tmp.begin(), tmp.end(), 0.0,
+    //                     [mean](float x, float y) {
+    //                         return std::move(x) + (y - mean) * (y - mean);
+    //                     }) /
+    //     tmp.size();
+    // float min = std::accumulate(
+    //     tmp.begin(), tmp.end(), 200.0,
+    //     [](float x, float y) { return std::min(std::move(x), y); });
+    // float max = std::accumulate(
+    //     tmp.begin(), tmp.end(), -200.0,
+    //     [](float x, float y) { return std::max(std::move(x), y); });
+
+    // std::cout << "mean var\n";
+    // std::cout << mean << " " << var << "\n";
+    // std::cout << "min max\n";
+    // std::cout << min << " " << max << "\n";
+    // for (int i = 0; i < 10; i++) {
+    //     std::cout << tmp[i] << " ";
+    // }
+
     return;
 }
 

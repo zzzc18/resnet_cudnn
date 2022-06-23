@@ -108,7 +108,6 @@ void Batchnorm2D::Forward() {
             epsilon_                 // double                           epsilon
             ));
     }
-
     return;
 }
 

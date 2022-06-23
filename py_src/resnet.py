@@ -280,6 +280,10 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def _forward_impl(self, x: Tensor) -> Tensor:
+        def print_grad(grad):
+            print(grad[0])
+            print(grad.mean().item(), grad.var().item())
+            print(grad.min().item(), grad.max().item())
         # See note [TorchScript super()]
         x = self.conv1(x)
         x = self.bn1(x)
@@ -293,10 +297,7 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        print(x.mean(), x.std())
-        exit()
         x = self.fc(x)
-
         return x
 
     def forward(self, x: Tensor) -> Tensor:

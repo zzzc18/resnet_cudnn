@@ -87,7 +87,7 @@ class ImageNetDataset : public Dataset<DataType> {
         if (img.data == nullptr) {
             throw "图片文件不存在: " + fileNameLabelPair[index].first;
         }
-        cv::resize(img, img, cv::Size(224, 224), 0.0, 0.0, cv::INTER_NEAREST);
+        cv::resize(img, img, cv::Size(224, 224), 0.0, 0.0, cv::INTER_LINEAR);
         cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
         float *imgCHW{nullptr};
         imgCHW = ::HWC2CHW(img);

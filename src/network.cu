@@ -52,11 +52,11 @@ void Network::Forward() {
         //     BlobPointer<float> mean, var;
         //     mean.Initiate({1, bn->weights_.GetChannels(), 1, 1},
         //                   (float *)bn->resultRunningMean_);
-        //     layer->biases_.SaveAsNumpyArray("weights/" + layer->GetName() +
+        //     mean.SaveAsNumpyArray("weights/" + layer->GetName() +
         //                                     "-running_mean.npy");
         //     var.Initiate({1, bn->weights_.GetChannels(), 1, 1},
         //                  (float *)bn->resultRunningVariance_);
-        //     layer->biases_.SaveAsNumpyArray("weights/" + layer->GetName() +
+        //     var.SaveAsNumpyArray("weights/" + layer->GetName() +
         //                                     "-running_var.npy");
         // }
 
