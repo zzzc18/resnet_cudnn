@@ -42,6 +42,24 @@ void Network::Forward() {
     for (auto layer : layerGraph_.layers_) {
         layer->Forward();
 
+        // Save weights
+        // layer->weights_.SaveAsNumpyArray("weights/" + layer->GetName() +
+        //                                  "-weight.npy");
+        // layer->biases_.SaveAsNumpyArray("weights/" + layer->GetName() +
+        //                                 "-bias.npy");
+        // if (layer->GetLayerType() == LayerType::Batchnorm2D) {
+        //     Batchnorm2D *bn = (Batchnorm2D *)layer;
+        //     BlobPointer<float> mean, var;
+        //     mean.Initiate({1, bn->weights_.GetChannels(), 1, 1},
+        //                   (float *)bn->resultRunningMean_);
+        //     layer->biases_.SaveAsNumpyArray("weights/" + layer->GetName() +
+        //                                     "-running_mean.npy");
+        //     var.Initiate({1, bn->weights_.GetChannels(), 1, 1},
+        //                  (float *)bn->resultRunningVariance_);
+        //     layer->biases_.SaveAsNumpyArray("weights/" + layer->GetName() +
+        //                                     "-running_var.npy");
+        // }
+
         // Debug
         // std::cout << "[[Forward ]][[ " << std::setw(7) << layer->GetName()
         //           << " ]]\t(" << layer->input_.GetChannels() << ", "

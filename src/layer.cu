@@ -72,7 +72,7 @@ void Layer::InitiateWeightsAndBiases() {
     // Create random network
     std::random_device rd;
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::mt19937 gen(seed);
+    std::mt19937 gen(1118);
 
     // Xaiver like init
     float range;

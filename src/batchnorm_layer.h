@@ -44,6 +44,9 @@ class Batchnorm2D : public Layer {
     virtual void DescriptorsAndWorkSpace() override;
     virtual void InitiateWeightsAndBiases() override;
 
+    void *resultRunningMean_{nullptr};
+    void *resultRunningVariance_{nullptr};
+
    private:
     bool zeroInitWeight_;
 
@@ -52,8 +55,6 @@ class Batchnorm2D : public Layer {
 
     std::array<int, 4> output_shape_;
 
-    void *resultRunningMean_{nullptr};
-    void *resultRunningVariance_{nullptr};
     void *resultSaveMean_{nullptr};
     void *resultSaveInvVariance_{nullptr};
 

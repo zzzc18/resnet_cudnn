@@ -7,6 +7,7 @@
 #include <fstream>
 #include <string>
 
+#include "cnpy.h"
 #include "cuda_helper.h"
 #include "utilities_sc.h"
 
@@ -85,6 +86,15 @@ class BlobPointer {
     cudaError_t ToHost(T *h_ptr, size_t const len) {
         return (cudaMemcpy(h_ptr, this->CudaPtr(), sizeof(T) * len,
                            cudaMemcpyDeviceToHost));
+    }
+
+    void SaveAsNumpyArray(std::string fileName) {
+        std::vector<T> dataCPU(this->LengthNchw());
+        this->ToHost(dataCPU);
+        cnpy::npy_save<T>(
+            fileName, &dataCPU[0],
+            {(size_t)n_, (size_t)channels_, (size_t)height_, (size_t)width_},
+            "w");
     }
 
     void print(std::string name, bool view_param = false, int width = 16) {
