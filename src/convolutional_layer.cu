@@ -116,6 +116,11 @@ void Conv2D::Forward() {
 }
 
 void Conv2D::Backward(BlobPointer<float> const &labels) {
+    float *xPtr = input_.CudaPtr();
+    if (previousSplitLayer_ != nullptr) {
+        xPtr = previousSplitLayer_->GetInput().CudaPtr();
+    };
+
     // gradients of biases
     if (useBias_) {
         checkCudnnErrors(cudnnConvolutionBackwardBias(
@@ -125,10 +130,9 @@ void Conv2D::Backward(BlobPointer<float> const &labels) {
 
     // gradients of weights
     checkCudnnErrors(cudnnConvolutionBackwardFilter(
-        cuda_->cudnn(), &cuda_->one, input_desc_, input_.CudaPtr(),
-        output_desc_, output_.CudaPtr(), conv_desc_, conv_backward_filter_algo_,
-        d_workspace_, workspace_shape_, &cuda_->zero, filter_desc_,
-        grad_weights_.CudaPtr()));
+        cuda_->cudnn(), &cuda_->one, input_desc_, xPtr, output_desc_,
+        output_.CudaPtr(), conv_desc_, conv_backward_filter_algo_, d_workspace_,
+        workspace_shape_, &cuda_->zero, filter_desc_, grad_weights_.CudaPtr()));
 
     // gradients of input data
     if (!gradient_stop_) {

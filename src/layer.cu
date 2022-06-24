@@ -129,7 +129,7 @@ int Layer::ObtainPredictionAccuracy(std::vector<label_t> const &labels,
 
 void Layer::BackwardCopy() {
     if (gradient_stop_) return;
-    if (afterSplitLayer_) {
+    if (previousSplitLayer_ != nullptr) {
         checkCublasErrors(cublasSaxpy(cuda_->cublas(), input_.LengthNchw(),
                                       &cuda_->one, d_temp_grad_features_, 1,
                                       input_.CudaPtr(), 1));

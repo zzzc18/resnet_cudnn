@@ -83,7 +83,7 @@ void Split::Forward() {
 }
 
 void Split::Backward(BlobPointer<float> const &labels) {
-    if (afterSplitLayer_) {
+    if (previousSplitLayer_ != nullptr) {
         checkCublasErrors(cublasSaxpy(cuda_->cublas(), input_.LengthNchw(),
                                       &cuda_->one, output_.CudaPtr(), 1,
                                       input_.CudaPtr(), 1));

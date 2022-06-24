@@ -11,3 +11,8 @@ runs
 mat.txt
 tmp
 logs
+special_run
+weights
+weight_converter
+seq.txt
+*.npy

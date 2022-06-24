@@ -102,7 +102,7 @@ class Layer {
     LayerType layerType_;
     float *d_temp_grad_features_{nullptr};
     float *d_retain_output_{nullptr};
-    bool afterSplitLayer_{false};
+    Layer *previousSplitLayer_{nullptr};
 
    private:
     std::string name_;

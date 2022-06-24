@@ -112,6 +112,11 @@ void Batchnorm2D::Forward() {
 }
 
 void Batchnorm2D::Backward(BlobPointer<float> const &labels) {
+    float *xPtr = input_.CudaPtr();
+    if (previousSplitLayer_ != nullptr) {
+        xPtr = previousSplitLayer_->GetInput().CudaPtr();
+    };
+
     checkCudnnErrors(cudnnBatchNormalizationBackward(
         cuda_->cudnn(),           // cudnnHandle_t                    handle,
         CUDNN_BATCHNORM_SPATIAL,  // cudnnBatchNormMode_t             mode,
@@ -120,7 +125,7 @@ void Batchnorm2D::Backward(BlobPointer<float> const &labels) {
         &cuda_->one,              // const void                 *alphaParamDiff,
         &cuda_->zero,             // const void                 *betaParamDiff,
         input_desc_,              // const cudnnTensorDescriptor_t    xDesc,
-        input_.CudaPtr(),         // const void                      *x,
+        xPtr,                     // const void                      *x,
         output_desc_,             // const cudnnTensorDescriptor_t    dyDesc,
         output_.CudaPtr(),        // const void                      *dy,
         input_desc_,              // const cudnnTensorDescriptor_t    dxDesc,

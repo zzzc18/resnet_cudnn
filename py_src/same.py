@@ -40,13 +40,10 @@ class Metric():
 
 def load_my_weight(model):
     params = model.state_dict()
-    weights_paths = glob.glob("../weights/*")
     prefix = "../weights/"
     suffix = ".npy"
     for para in params:
         if "num_batches_tracked" in para:
-            continue
-        if "bn" in para:
             continue
         name: str = para.replace(".", "-")
         pos = name.find("-")
@@ -129,20 +126,18 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()
             loss.backward()
-            print(model.fc.weight.grad[0])
+            # if step == 1:
+            # np.save("../weight_converter/fc_weight_grad_std.npy",
+            #         model.fc.weight.grad.cpu().detach().numpy())
+            # exit(0)
             optimizer.step()
             # if step == 1:
-            #     paras = model.state_dict()
-            #     for para in paras:
-            #         if "num_batches_tracked" in para:
-            #             continue
-            #         print(para)
-            #         print("%.5f %.5f" %
-            #               (paras[para].mean().item(), paras[para].var().item()))
-            #         print("%.5f %.5f" %
-            #               (paras[para].min().item(), paras[para].max().item()))
-            if step == 2:
-                exit(0)
+            #     np.save("../weight_converter/layer4.0.downsample.0.weight_grad.npy",
+            #             model.layer4[0].downsample[0].weight.grad.cpu().detach().numpy())
+            #     exit(0)
+            # if step == 1:
+            #     torch.save(model.state_dict(), "step1.pt")
+            #     exit(0)
             # print(loss.item())
             # for i in range(10):
             #     print(model.conv1.weight.grad.reshape(-1)[1024+i].item())

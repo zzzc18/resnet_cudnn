@@ -76,6 +76,25 @@ class ImageNetDataset : public Dataset<DataType> {
             }
         }
         std::sort(fileNameLabelPair.begin(), fileNameLabelPair.end());
+        fclose(fp);
+
+        // if (type == "train") {
+        //     fp = fopen("seq.txt", "r");
+        //     int len;
+        //     fscanf(fp, "%d", &len);
+        //     std::vector<int> seq;
+        //     std::vector<std::pair<std::string, int>> tmp;
+        //     while (len--) {
+        //         int idx;
+        //         fscanf(fp, "%d", &idx);
+        //         seq.push_back(idx);
+        //     }
+        //     for (auto val : seq) {
+        //         tmp.push_back(fileNameLabelPair[val]);
+        //     }
+        //     fileNameLabelPair = tmp;
+        //     fclose(fp);
+        // }
     }
     ~ImageNetDataset() {}
 

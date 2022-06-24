@@ -39,26 +39,29 @@ void Network::SetWorkloadType(WorkloadType const &in) {
 }
 
 void Network::Forward() {
+    static int step = 0;
+    step++;
     for (auto layer : layerGraph_.layers_) {
-        layer->Forward();
-
         // Save weights
-        // layer->weights_.SaveAsNumpyArray("weights/" + layer->GetName() +
-        //                                  "-weight.npy");
-        // layer->biases_.SaveAsNumpyArray("weights/" + layer->GetName() +
-        //                                 "-bias.npy");
-        // if (layer->GetLayerType() == LayerType::Batchnorm2D) {
-        //     Batchnorm2D *bn = (Batchnorm2D *)layer;
-        //     BlobPointer<float> mean, var;
-        //     mean.Initiate({1, bn->weights_.GetChannels(), 1, 1},
-        //                   (float *)bn->resultRunningMean_);
-        //     mean.SaveAsNumpyArray("weights/" + layer->GetName() +
-        //                                     "-running_mean.npy");
-        //     var.Initiate({1, bn->weights_.GetChannels(), 1, 1},
-        //                  (float *)bn->resultRunningVariance_);
-        //     var.SaveAsNumpyArray("weights/" + layer->GetName() +
-        //                                     "-running_var.npy");
+        // if (step == 1) {
+        //     layer->weights_.SaveAsNumpyArray("weights/" + layer->GetName() +
+        //                                      "-weight.npy");
+        //     layer->biases_.SaveAsNumpyArray("weights/" + layer->GetName() +
+        //                                     "-bias.npy");
+        //     if (layer->GetLayerType() == LayerType::Batchnorm2D) {
+        //         Batchnorm2D *bn = (Batchnorm2D *)layer;
+        //         BlobPointer<float> mean, var;
+        //         mean.Initiate({1, bn->weights_.GetChannels(), 1, 1},
+        //                       (float *)bn->resultRunningMean_);
+        //         mean.SaveAsNumpyArray("weights/" + layer->GetName() +
+        //                               "-running_mean.npy");
+        //         var.Initiate({1, bn->weights_.GetChannels(), 1, 1},
+        //                      (float *)bn->resultRunningVariance_);
+        //         var.SaveAsNumpyArray("weights/" + layer->GetName() +
+        //                              "-running_var.npy");
+        //     }
         // }
+        layer->Forward();
 
         // Debug
         // std::cout << "[[Forward ]][[ " << std::setw(7) << layer->GetName()
@@ -354,7 +357,7 @@ void Network::AllocateMemoryForFeatures() {
 
     /// 1. set the shape of the feature at each layer
     /// 2. get the total length of features among all layers
-    /// 3. init nextLayer->afterSplitLayer_ for BackwardCopy
+    /// 3. init nextLayer->previousSplitLayer_ for BackwardCopy
     length_features_ = shape[0] * shape[1] * shape[2] * shape[3];
 
     layerGraph_.layers_[0]->in_shape_ = shape;
@@ -363,7 +366,7 @@ void Network::AllocateMemoryForFeatures() {
         layer->InitFeatureShape();
         for (auto nextLayer : layerGraph_.edgeGraph_[layer]) {
             if (layer->GetLayerType() == LayerType::Split) {
-                nextLayer->afterSplitLayer_ = true;
+                nextLayer->previousSplitLayer_ = layer;
             }
             nextLayer->in_shape_ = layer->out_shape_;
         }

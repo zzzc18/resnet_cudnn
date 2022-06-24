@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         net.Predict(&valDataset);
 
         t.PrintDiff("预测时间...");
-        learning_rate *= 0.96;
+        learning_rate *= 0.98;
         learning_rate = std::max(learning_rate_lower_bound, learning_rate);
         std::cout << "\n";
     }

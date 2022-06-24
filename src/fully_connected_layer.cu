@@ -70,6 +70,11 @@ void Fully_connected::Forward() {
 }
 
 void Fully_connected::Backward(BlobPointer<float> const &labels) {
+    float *xPtr = input_.CudaPtr();
+    if (previousSplitLayer_ != nullptr) {
+        xPtr = previousSplitLayer_->GetInput().CudaPtr();
+    };
+
     int batch_size = input_.get_n();
     if (useBias_) {
         checkCublasErrors(
@@ -79,17 +84,10 @@ void Fully_connected::Backward(BlobPointer<float> const &labels) {
     }
 
     // dw = xT * (dy)
-    checkCublasErrors(cublasSgemm(cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_T,
-                                  output_shape_, input_shape_, batch_size,
-                                  &cuda_->one, output_.CudaPtr(), output_shape_,
-                                  input_.CudaPtr(), input_shape_, &cuda_->zero,
-                                  grad_weights_.CudaPtr(), output_shape_));
-
-    std::vector<float> outputCPU(output_.LengthNchw());
-    output_.ToHost(outputCPU);
-
-    std::vector<float> grad_weightsCPU(grad_weights_.LengthNchw());
-    grad_weights_.ToHost(grad_weightsCPU);
+    checkCublasErrors(cublasSgemm(
+        cuda_->cublas(), CUBLAS_OP_N, CUBLAS_OP_T, output_shape_, input_shape_,
+        batch_size, &cuda_->one, output_.CudaPtr(), output_shape_, xPtr,
+        input_shape_, &cuda_->zero, grad_weights_.CudaPtr(), output_shape_));
 
     // dx = W * dyT
     if (!gradient_stop_) {

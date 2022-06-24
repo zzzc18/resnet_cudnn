@@ -284,6 +284,11 @@ class ResNet(nn.Module):
             print(grad[0])
             print(grad.mean().item(), grad.var().item())
             print(grad.min().item(), grad.max().item())
+
+        def save_grad(grad: torch.Tensor):
+            import numpy as np
+            np.save("../weight_converter/fc_output_grad_std.npy",
+                    grad.cpu().detach().numpy())
         # See note [TorchScript super()]
         x = self.conv1(x)
         x = self.bn1(x)
@@ -297,7 +302,11 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
+        # import numpy as np
+        # np.save("../weight_converter/fc_input_std.npy",
+        #         x.cpu().detach().numpy())
         x = self.fc(x)
+        # x.register_hook(save_grad)
         return x
 
     def forward(self, x: Tensor) -> Tensor:

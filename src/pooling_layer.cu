@@ -30,10 +30,15 @@ void Pooling::Forward() {
 }
 
 void Pooling::Backward(BlobPointer<float> const &labels) {
+    float *xPtr = input_.CudaPtr();
+    if (previousSplitLayer_ != nullptr) {
+        xPtr = previousSplitLayer_->GetInput().CudaPtr();
+    };
+
     checkCudnnErrors(cudnnPoolingBackward(
         cuda_->cudnn(), pool_desc_, &cuda_->one, output_desc_, d_retain_output_,
-        output_desc_, output_.CudaPtr(), input_desc_, input_.CudaPtr(),
-        &cuda_->zero, input_desc_, d_temp_grad_features_));
+        output_desc_, output_.CudaPtr(), input_desc_, xPtr, &cuda_->zero,
+        input_desc_, d_temp_grad_features_));
     this->BackwardCopy();
     return;
 }
