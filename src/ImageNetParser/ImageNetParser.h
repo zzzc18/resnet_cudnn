@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "Dataset/Dataset.h"
+#include "ImageNetParser/Transforms.h"
 #include "utilities_sc.h"
 
 using dataType = std::pair<float *, int>;
@@ -48,6 +49,11 @@ class ImageNetDataset : public Dataset<DataType> {
     ImageNetDataset(std::string _root, std::string _type)
         : Dataset<DataType>(), root(_root), type(_type) {
         assert(type == "train" or type == "val");
+        if (type == "train") {
+            transfromPtr = new TrainTransform;
+        } else {  // val
+            transfromPtr = new TestTransform;
+        }
 
         FILE *fp = fopen((root + "/index2folder.txt").c_str(), "r");
         int totalClasses;
@@ -106,7 +112,8 @@ class ImageNetDataset : public Dataset<DataType> {
         if (img.data == nullptr) {
             throw "图片文件不存在: " + fileNameLabelPair[index].first;
         }
-        cv::resize(img, img, cv::Size(224, 224), 0.0, 0.0, cv::INTER_LINEAR);
+        // cv::resize(img, img, cv::Size(224, 224), 0.0, 0.0, cv::INTER_LINEAR);
+        img = transfromPtr->Forward(img);
         cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
         float *imgCHW{nullptr};
         imgCHW = ::HWC2CHW(img);
@@ -114,6 +121,8 @@ class ImageNetDataset : public Dataset<DataType> {
     }
 
     int GetLabel(int index) const { return fileNameLabelPair[index].second; }
+
+    Transform *transfromPtr;
 };
 
 // template <class DataType>

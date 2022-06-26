@@ -18,9 +18,9 @@ int main(int argc, char *argv[]) {
     // Res18
     int batch_size_train = 64;
     int batch_size_test = 50;
-    float learning_rate = 0.32;
-    float learning_rate_lower_bound = 1E-4;
-    float momentum = 0;
+    float learning_rate = 0.064;
+    float learning_rate_lower_bound = 1E-3;
+    float momentum = 0.875;
     float weightDecay = 0;
     // Res50
     // int batch_size_train = 32;
@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     ResNet net(18);
     net.AddLayers();
 
-    const int epoch = 25;
+    const int epoch = 50;
     for (int i = 0; i < epoch; i++) {
         std::cout << "running at epoch: " << i << "\n";
         std::cout << "learning_rate: " << std::fixed << std::setprecision(5)
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         net.Predict(&valDataset);
 
         t.PrintDiff("预测时间...");
-        learning_rate *= 0.98;
+        learning_rate *= 0.975;
         learning_rate = std::max(learning_rate_lower_bound, learning_rate);
         std::cout << "\n";
     }
