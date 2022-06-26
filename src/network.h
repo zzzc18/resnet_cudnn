@@ -25,7 +25,8 @@ class Network {
     virtual void AddLayers();
     void SetWorkloadType(WorkloadType const &in);
     void Train(const Dataset<dataType> *datasetPtr, float const learning_rate,
-               float const momentum, float const weightDecay);
+               float const momentum, float const weightDecay,
+               float lableSmooth);
 
     void Predict(const Dataset<dataType> *datasetPtr);
 

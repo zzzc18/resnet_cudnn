@@ -101,9 +101,14 @@ void Network::Update(float const learning_rate, float const momentum,
 
     if (weightDecay > 0) {
         // dw = dw+weightDecay*w
-        checkCublasErrors(cublasSaxpy(cuda_.cublas(), length_weights_,
-                                      &weightDecay, d_weights_, 1,
-                                      d_grad_weights_, 1));
+        for (auto layer : layerGraph_.layers_) {
+            if (layer->GetLayerType() == LayerType::Batchnorm2D) continue;
+            if (layer->weights_.LengthNchw() <= 1) continue;
+            checkCublasErrors(
+                cublasSaxpy(cuda_.cublas(), layer->weights_.LengthNchw(),
+                            &weightDecay, layer->weights_.CudaPtr(), 1,
+                            layer->grad_weights_.CudaPtr(), 1));
+        }
     }
 
     if (momentum > 0) {
@@ -213,7 +218,7 @@ void Network::AddLayers() {
 
 void Network::Train(const Dataset<dataType> *datasetPtr,
                     float const learning_rate, float const momentum = 0,
-                    float const weightDecay = 0) {
+                    float const weightDecay = 0, float lableSmooth = 0) {
     std::vector<int> rand_perm(datasetPtr->Length());
     for (size_t i = 0; i < datasetPtr->Length(); i++) rand_perm[i] = i;
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -225,7 +230,9 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
     int batch_count_train = datasetPtr->Length() / batch_size_train;
     int size_one_feature = 224 * 224 * 3;
     std::vector<float> samples(size_one_feature * batch_size_train);
-    std::vector<float> labels(IMAGENET_CLASSES * batch_size_train, 0.0);
+    float lableSmoothEPS = lableSmooth / IMAGENET_CLASSES;
+    std::vector<float> labels(IMAGENET_CLASSES * batch_size_train,
+                              lableSmoothEPS);
 
     int num_success = 0;
     std::vector<label_t> labelsPredict(IMAGENET_CLASSES * batch_size_train, 0);
@@ -247,7 +254,7 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
             for (int k = 0; k < size_one_feature; k++) {
                 samples[i * size_one_feature + k] = *(float *)(item.first + k);
             }
-            labels[i * IMAGENET_CLASSES + item.second] = 1;
+            labels[i * IMAGENET_CLASSES + item.second] = (1 - lableSmooth);
             labelsPredict[i * IMAGENET_CLASSES + item.second] = 1;
             free(item.first);
         }
@@ -264,7 +271,8 @@ void Network::Train(const Dataset<dataType> *datasetPtr,
         for (int i = 0; i < batch_size_train; i++) {
             labels[i * IMAGENET_CLASSES +
                    datasetPtr->GetLabel(
-                       rand_perm[step * batch_size_train + i])] = 0;
+                       rand_perm[step * batch_size_train + i])] =
+                lableSmoothEPS;
             labelsPredict[i * IMAGENET_CLASSES +
                           datasetPtr->GetLabel(
                               rand_perm[step * batch_size_train + i])] = 0;
@@ -332,7 +340,8 @@ void Network::Predict(const Dataset<dataType> *datasetPtr) {
     //     std::cout << std::setw(4) << i << "  ";
     //     for (int j = 0; j < IMAGENET_CLASSES; j++) {
     //         std::cout << std::setw(4)
-    //                   << confusion_matrix[i * IMAGENET_CLASSES + j] << "  ";
+    //                   << confusion_matrix[i * IMAGENET_CLASSES + j] << "
+    //                   ";
     //     }
     //     std::cout << "\n";
     // }
