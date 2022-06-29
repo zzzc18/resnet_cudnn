@@ -4,11 +4,11 @@
 
 **ResNet18**
 
-![resnet18](readme_figure\resnet18.jpg)
+![resnet18](readme_figure/resnet18.jpg)
 
 **ResNet50**
 
-![resnet50](readme_figure\resnet50.jpg)
+![resnet50](readme_figure/resnet50.jpg)
 
 关于本项目的具体介绍可以查看 `doc.pdf`。
 
