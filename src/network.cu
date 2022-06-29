@@ -100,7 +100,7 @@ void Network::Update(float const learning_rate, float const momentum,
     float eta = -1.f * learning_rate;
 
     if (weightDecay > 0) {
-        // dw = dw+weightDecay*w
+        // dw = dw+weightDecay*w, no weight decay on bias
         for (auto layer : layerGraph_.layers_) {
             if (layer->GetLayerType() == LayerType::Batchnorm2D) continue;
             if (layer->weights_.LengthNchw() <= 1) continue;

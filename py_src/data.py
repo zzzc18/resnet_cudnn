@@ -39,23 +39,23 @@ class ImageNetDataset(Dataset):
             category_name = category_path.split("/")[-1]
             img_paths = glob.glob(category_path+"/*")
             for img_path in img_paths:
-                if category_index_mapping[category_name] % 100 == 0:
-                    self.img_path_label_pairs.append(
-                        [img_path, category_index_mapping[category_name]//100])
-                # self.img_path_label_pairs.append(
-                #     [img_path, category_index_mapping[category_name]])
+                # if category_index_mapping[category_name] % 100 == 0:
+                #     self.img_path_label_pairs.append(
+                #         [img_path, category_index_mapping[category_name]//100])
+                self.img_path_label_pairs.append(
+                    [img_path, category_index_mapping[category_name]])
         self.img_path_label_pairs = sorted(
             self.img_path_label_pairs, key=lambda x: x[0])
 
-        if run_type == "train":
-            seq = []
-            with open("../seq.txt", "r") as fin:
-                lines = fin.read().split("\n")[1:-1]
-                for line in lines:
-                    seq.append(int(line))
-            tmp = [self.img_path_label_pairs[seq[i]]
-                   for i in range(len(self.img_path_label_pairs))]
-            self.img_path_label_pairs = tmp
+        # if run_type == "train":
+        #     seq = []
+        #     with open("../seq.txt", "r") as fin:
+        #         lines = fin.read().split("\n")[1:-1]
+        #         for line in lines:
+        #             seq.append(int(line))
+        #     tmp = [self.img_path_label_pairs[seq[i]]
+        #            for i in range(len(self.img_path_label_pairs))]
+        #     self.img_path_label_pairs = tmp
 
     def __len__(self):
         return len(self.img_path_label_pairs)

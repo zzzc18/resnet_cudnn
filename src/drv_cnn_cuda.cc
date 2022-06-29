@@ -16,13 +16,13 @@ int main(int argc, char *argv[]) {
     // float learning_rate = 0.01 * sqrt((float)batch_size_train);
 
     // Res18
-    int batch_size_train = 128;
+    int batch_size_train = 64;
     int batch_size_test = 50;
-    float learning_rate = 0.128;
+    float learning_rate = 0.1;
     float learning_rate_lower_bound = 1E-3;
     float momentum = 0.875;
     float weightDecay = 1.0 / 32768;
-    float lableSmooth = 0.1;
+    float lableSmooth = 0.0;
     // Res50
     // int batch_size_train = 32;
     // int batch_size_test = 32;
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     ResNet net(18);
     net.AddLayers();
 
-    const int epoch = 60;
+    const int epoch = 45;
     for (int i = 0; i < epoch; i++) {
         std::cout << "running at epoch: " << i << "\n";
         std::cout << "learning_rate: " << std::fixed << std::setprecision(5)

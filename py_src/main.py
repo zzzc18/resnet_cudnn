@@ -59,8 +59,8 @@ if __name__ == "__main__":
         dataset=val_dataset, batch_size=64, shuffle=False, drop_last=False, num_workers=12)
 
     # model = TestModel()
-    model = torchvision.models.resnet18(
-        pretrained=False, zero_init_residual=True, num_classes=10)
+    model = torchvision.models.resnet50(
+        pretrained=True, zero_init_residual=True, num_classes=1000)
     # model = resnet.resnet18(
     #     pretrained=False, zero_init_residual=True, num_classes=10)
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     model = model.cuda()
     writer = SummaryWriter()
 
-    metric_method = Metric(num_classes=10)
+    metric_method = Metric(num_classes=1000)
 
     total_epoch = 25
     step = 0
@@ -99,7 +99,7 @@ if __name__ == "__main__":
         print(f"My metric:{metric_method.compute()}")
         metric_method.reset()
 
-        confusion_matrix = np.zeros((10, 10))
+        # confusion_matrix = np.zeros((1000, 1000))
         model.eval()
         for img, label in tqdm(val_dataloader):
             step += 1
@@ -108,11 +108,11 @@ if __name__ == "__main__":
             output = model(img)
             loss = loss_func(output, label)
             batch_metric = metric_method(output, label)
-            predict = output.cpu().argmax(dim=-1)
-            for i in range(label.shape[0]):
-                confusion_matrix[predict[i], label[i]] += 1
+            # predict = output.cpu().argmax(dim=-1)
+            # for i in range(label.shape[0]):
+            #     confusion_matrix[predict[i], label[i]] += 1
 
-        print(confusion_matrix)
+        # print(confusion_matrix)
         metric_result = metric_method.compute()
         metric_method.reset()
         print(f"My metric: {metric_result}")
