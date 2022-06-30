@@ -18,4 +18,4 @@
 
 This project contains a reproducing of ResNet in CUDA environment with C++/CuDNN/CuBLAS.
 
-If you find this project usefull and can't read `doc.pdf`, u may contact me through zzzc18@outlook.com.
+If you find this project usefull and can't read `doc.pdf`, feel free to post an issue or contact me through zzzc18@outlook.com.
